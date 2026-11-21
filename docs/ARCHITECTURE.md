@@ -40,6 +40,21 @@ The app cannot infer which modules, edition or version are installed on the
 target server. Runtime syntax checks against an actual server binary remain
 outside the scope of this offline-only app.
 
+## Multi-file workspace and typed assistance
+
+`ConfigWorkspace` holds only explicitly imported or user-created logical files,
+using relative paths safe for ZIP export. Its include graph evaluates only those
+files, never resolving external target-server files on disk. The Avalonia import
+dialog accepts multiple selected files; folder import reads configuration-like
+extensions under the user-chosen root, skips symbolic links and applies count
+and size limits. Each editor tab retains its own file history when switching.
+
+`DirectiveArgumentForm` derives safe single-field choices, non-negative integers
+or simple NGINX sizes only from unambiguous published directive syntax.
+Anything more complex stays an editable raw string; typed validation can be
+disabled for advanced configurations. `ConfigTextDiff` presents a bounded,
+line-based comparison against the initial imported source before export.
+
 ## Export
 
 The Static Website screen generates native config text with a validation gate. The UI saves UTF-8 text using Avalonia's platform SaveFilePicker; it does not write to a running server.

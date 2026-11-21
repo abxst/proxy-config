@@ -3,8 +3,8 @@
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     Title="Proxy Config"
-    Width="1320"
-    Height="850"
+    Width="1370"
+    Height="880"
     MinWidth="1080"
     MinHeight="720"
     WindowStartupLocation="CenterScreen">
@@ -210,30 +210,55 @@
         </ScrollViewer>
       </Grid>
 
-      <Grid Grid.Column="1" IsVisible="{Binding IsImport}" ColumnDefinitions="395,*">
+      <Grid Grid.Column="1" IsVisible="{Binding IsImport}" ColumnDefinitions="445,*">
         <Grid Grid.Column="0" RowDefinitions="Auto,Auto,Auto,*,Auto,Auto"
               Margin="18,20,8,16" RowSpacing="12">
           <StackPanel Spacing="6">
             <TextBlock FontSize="24" FontWeight="SemiBold" Text="Import / Editor" />
             <TextBlock TextWrapping="Wrap" FontSize="12" Opacity="0.7"
                        Text="Import .conf, manage multiple nested blocks and export without dropping unknown directives or comments." />
-            <TextBlock Text="{Binding ImportFileName}" Opacity="0.6" FontSize="12" />
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <ComboBox Width="275" ItemsSource="{Binding WorkspaceFiles}"
+                        SelectedItem="{Binding SelectedWorkspaceFile}">
+                <ComboBox.ItemTemplate>
+                  <DataTemplate><TextBlock Text="{Binding Display}" /></DataTemplate>
+                </ComboBox.ItemTemplate>
+              </ComboBox>
+              <Button Command="{Binding RemoveWorkspaceFileCommand}" Content="Remove file" />
+            </StackPanel>
           </StackPanel>
-          <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="7">
-            <Button Click="ImportConfig_Click" Content="Open .conf" />
-            <Button Command="{Binding ParseImportedCommand}" Content="Parse" />
-            <Button Command="{Binding SelectRootScopeCommand}" Content="Root scope" />
-            <Button Command="{Binding AppendGeneratedHostCommand}"
-                    IsEnabled="{Binding CanAppendGeneratedHost}" Content="+ Preset" />
+          <StackPanel Grid.Row="1" Spacing="7">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Button Click="ImportConfig_Click" Content="Open files" />
+              <Button Click="ImportFolder_Click" Content="Open folder" />
+              <Button Click="SaveWorkspaceZip_Click" IsEnabled="{Binding HasWorkspaceFiles}"
+                      Content="Export ZIP" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Button Command="{Binding ParseImportedCommand}" Content="Parse" />
+              <Button Command="{Binding SelectRootScopeCommand}" Content="Root scope" />
+              <Button Command="{Binding AppendGeneratedHostCommand}"
+                      IsEnabled="{Binding CanAppendGeneratedHost}" Content="+ Preset" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBox Width="275" PlaceholderText="new relative file (sites/site.conf)"
+                       Text="{Binding NewWorkspacePath, UpdateSourceTrigger=PropertyChanged}" />
+              <Button Command="{Binding AddWorkspaceFileCommand}" Content="+ New file" />
+            </StackPanel>
           </StackPanel>
           <TextBlock Grid.Row="2" Text="{Binding ImportSummary}" FontSize="12" Opacity="0.7" />
-          <ListBox Grid.Row="3" ItemsSource="{Binding ImportedNodes}" SelectedItem="{Binding SelectedImportNode}">
-            <ListBox.ItemTemplate>
-              <DataTemplate>
-                <TextBlock Margin="5,4" FontFamily="Consolas" Text="{Binding Display}" />
-              </DataTemplate>
-            </ListBox.ItemTemplate>
-          </ListBox>
+          <Grid Grid.Row="3" RowDefinitions="Auto,*" RowSpacing="6">
+            <TextBox PlaceholderText="Find directive or block in AST..."
+                     Text="{Binding NodeSearchText, UpdateSourceTrigger=PropertyChanged}" />
+            <ListBox Grid.Row="1" ItemsSource="{Binding ImportedNodes}"
+                     SelectedItem="{Binding SelectedImportNode}">
+              <ListBox.ItemTemplate>
+                <DataTemplate>
+                  <TextBlock Margin="5,4" FontFamily="Consolas" Text="{Binding Display}" />
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+          </Grid>
           <TabControl Grid.Row="4" MaxHeight="335">
             <TabItem Header="Edit / Arrange">
               <StackPanel Margin="6,10,6,6" Spacing="8">
@@ -274,7 +299,14 @@
                     </ListBox.ItemTemplate>
                   </ListBox>
                   <TextBox PlaceholderText="Directive name" Text="{Binding NewDirectiveName, UpdateSourceTrigger=PropertyChanged}" />
+                  <TextBlock FontSize="11" Opacity="0.75" TextWrapping="Wrap" Text="{Binding TypedArgumentHint}" />
+                  <ComboBox ItemsSource="{Binding ArgumentChoices}"
+                            SelectedItem="{Binding SelectedArgumentChoice}"
+                            IsVisible="{Binding HasArgumentChoices}"
+                            HorizontalAlignment="Stretch" />
                   <TextBox PlaceholderText="Arguments (without trailing semicolon)" Text="{Binding NewDirectiveArguments, UpdateSourceTrigger=PropertyChanged}" />
+                  <CheckBox Content="Validate recognized argument types (raw override below)"
+                            IsChecked="{Binding UseTypedValidation}" FontSize="11" />
                   <TextBlock FontSize="11" Opacity="0.7" TextWrapping="Wrap" Text="{Binding DirectiveHint}" />
                   <Button Command="{Binding AddDirectiveCommand}" Content="Add directive to selected scope" />
                 </StackPanel>
@@ -308,6 +340,31 @@
                 </ListBox>
                 <TextBlock FontSize="11" TextWrapping="Wrap" Opacity="0.6"
                            Text="Warnings use published directive contexts. Unknown/conditional scopes and module availability cannot be fully validated offline." />
+              </StackPanel>
+            </TabItem>
+            <TabItem Header="Includes">
+              <StackPanel Margin="6,10,6,6" Spacing="8">
+                <TextBlock FontSize="12" Text="{Binding IncludeSummary}" TextWrapping="Wrap" />
+                <TextBlock FontSize="12" Text="Project root configuration" />
+                <ComboBox ItemsSource="{Binding WorkspaceFiles}"
+                          SelectedItem="{Binding SelectedRootWorkspaceFile}">
+                  <ComboBox.ItemTemplate>
+                    <DataTemplate><TextBlock Text="{Binding Display}" /></DataTemplate>
+                  </ComboBox.ItemTemplate>
+                </ComboBox>
+                <TextBox PlaceholderText="Optional Apache ServerRoot (target path)"
+                         Text="{Binding ApacheServerRoot, UpdateSourceTrigger=PropertyChanged}" />
+                <ListBox Height="105" ItemsSource="{Binding IncludeEntries}" />
+              </StackPanel>
+            </TabItem>
+            <TabItem Header="Diff">
+              <StackPanel Margin="6,10,6,6" Spacing="7">
+                <TextBlock FontSize="11" Opacity="0.7" TextWrapping="Wrap"
+                           Text="Compare current file with its originally imported text. Press Parse after raw edits." />
+                <TextBox Height="235" IsReadOnly="True" AcceptsReturn="True"
+                         FontFamily="Consolas" FontSize="11" TextWrapping="NoWrap"
+                         ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                         Text="{Binding DiffPreview}" />
               </StackPanel>
             </TabItem>
           </TabControl>

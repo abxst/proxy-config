@@ -36,7 +36,8 @@
 - [x] Structural syntax check for inserted directives/blocks (v0.4)
 - [x] Non-blocking, catalog-backed context mismatch warnings for known directives (v0.5)
 - [x] Scope-aware directive suggestions, including NGINX HTTP/Stream/Mail and Apache containers (v0.5)
-- [ ] Typed argument grammars and validation for individual directives
+- [x] Typed-choice and simple numeric/size form assistance for unambiguous catalog signatures (v0.6)
+- [ ] Complete per-directive argument grammars and semantic validation
 - [ ] Exact installed module, edition/platform and version compatibility checks
 - [ ] Reference/dependency diagnostics, security lint warnings without automatic rewriting
 
@@ -51,7 +52,8 @@
 - [ ] Registry-driven typed property editor and validation for each directive argument
 - [ ] Verified, target-server-aware context/module/version compatibility and semantic diagnostics (M3; advisory context checks implemented)
 - [ ] Move blocks across different parents, drag and drop, and command palette
-- [ ] Project-level multi-file editor and per-block preset forms for host/route/upstream settings
+- [x] Multi-file editor with explicit imports, independent edit histories and ZIP export (v0.6)
+- [ ] Per-block preset forms for host/route/upstream settings and cross-file block moves
 
 ## M5 — Presets
 
@@ -66,13 +68,15 @@ Static Website is the first implemented preset. Continue with:
 - TLS
 - TCP/UDP stream and mail proxy where supported
 
-## M6 — Raw editor and round trip
+## M6 — Raw editor and round trip (partially shipped in v0.6)
 
-- Syntax highlighting
-- Completion from registry
-- Diagnostics
-- Visual/raw synchronization
-- Diff before export
+- [ ] Syntax highlighting
+- [x] Registry-driven directive name lookup and simple enum choices
+- [x] Structural and context diagnostics
+- [x] Visual/raw synchronization after Parse
+- [x] Source-relative, bounded line diff before export
+- [x] Workspace include-graph panel with explicitly imported file set
+- [ ] Rich completion, line/column navigation and scalable diff with hunk controls
 
 ## M7 — Coverage and hardening
 

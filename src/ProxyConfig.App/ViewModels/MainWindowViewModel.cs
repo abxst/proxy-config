@@ -15,6 +15,13 @@ public sealed class MainWindowViewModel : ObservableObject
     private enum EditorPage { StaticSite, ReverseProxy, Redirect, Explorer, Import }
 
     private readonly DirectiveCatalog _catalog = DirectiveCatalog.LoadEmbedded();
+    private WorkspaceFileItem? _selectedWorkspaceFile;
+    private WorkspaceFileItem? _selectedRootWorkspaceFile;
+    private string _includeSummary = string.Empty;
+    private string _apacheServerRoot = string.Empty;
+    private string _diffPreview = string.Empty;
+    private string _nodeSearchText = string.Empty;
+    private string _newWorkspacePath = "nginx.conf";
     private ServerEngine _selectedEngine = ServerEngine.Nginx;
     private TargetPlatform _selectedTargetPlatform = TargetPlatform.Linux;
     private string _domain = "example.com";
@@ -62,8 +69,12 @@ public sealed class MainWindowViewModel : ObservableObject
     private string _editorScopeContext = "main";
     private string _contextWarningSummary = string.Empty;
     private bool _hideIncompatibleDirectives;
-    private readonly Stack<string> _undo = new();
-    private readonly Stack<string> _redo = new();
+    private DirectiveArgumentForm? _argumentForm;
+    private string _typedArgumentHint = string.Empty;
+    private string? _selectedArgumentChoice;
+    private bool _useTypedValidation = true;
+    private Stack<string> _undo = new();
+    private Stack<string> _redo = new();
     private string _preview = string.Empty;
     private string _validationMessage = string.Empty;
     private string _exportStatus = string.Empty;
@@ -91,6 +102,8 @@ public sealed class MainWindowViewModel : ObservableObject
         MoveNodeDownCommand = new RelayCommand(() => MoveSelectedNode(1));
         UndoEditCommand = new RelayCommand(UndoEdit);
         RedoEditCommand = new RelayCommand(RedoEdit);
+        RemoveWorkspaceFileCommand = new RelayCommand(RemoveSelectedWorkspaceFile);
+        AddWorkspaceFileCommand = new RelayCommand(AddWorkspaceFile);
         RefreshExplorer();
         RefreshDirectiveSuggestions();
         Regenerate();
@@ -113,10 +126,15 @@ public sealed class MainWindowViewModel : ObservableObject
     public IRelayCommand MoveNodeDownCommand { get; }
     public IRelayCommand UndoEditCommand { get; }
     public IRelayCommand RedoEditCommand { get; }
+    public IRelayCommand RemoveWorkspaceFileCommand { get; }
+    public IRelayCommand AddWorkspaceFileCommand { get; }
     public ObservableCollection<ConfigNodeListItem> ImportedNodes { get; } = [];
     public ObservableCollection<DocumentedDirective> SearchResults { get; } = [];
     public ObservableCollection<DocumentedDirective> DirectiveSuggestions { get; } = [];
+    public ObservableCollection<string> ArgumentChoices { get; } = [];
     public ObservableCollection<ConfigContextAnalyzer.Warning> ContextWarnings { get; } = [];
+    public ObservableCollection<WorkspaceFileItem> WorkspaceFiles { get; } = [];
+    public ObservableCollection<string> IncludeEntries { get; } = [];
     public IReadOnlyList<ServerEngine> ServerEngines { get; } = Enum.GetValues<ServerEngine>();
     public IReadOnlyList<TargetPlatform> TargetPlatforms { get; } = Enum.GetValues<TargetPlatform>();
     public IReadOnlyList<int> RedirectStatuses { get; } = [301, 302, 307, 308];
@@ -130,7 +148,7 @@ public sealed class MainWindowViewModel : ObservableObject
     public bool IsGenerator => !IsExplorer && !IsImport;
 
     public string SuggestedFileName => IsImport && ImportFileName.Length > 0
-        ? ImportFileName
+        ? ImportFileName.Replace('\\', '/').Split('/').Last()
         : $"{(SelectedEngine == ServerEngine.Nginx ? "nginx" : "apache")}-" +
           (_page == EditorPage.ReverseProxy ? "proxy" :
            _page == EditorPage.Redirect ? "redirect" :
@@ -143,6 +161,8 @@ public sealed class MainWindowViewModel : ObservableObject
         {
             if (SetProperty(ref _importText, value))
             {
+                if (_selectedWorkspaceFile is not null)
+                    _selectedWorkspaceFile.Text = value;
                 OnPropertyChanged(nameof(CanExport));
                 if (_importedDocument is not null && _importedDocument.Text != value)
                     ImportDiagnostics = "Text changed. Press Parse to refresh the structure.";
@@ -157,6 +177,95 @@ public sealed class MainWindowViewModel : ObservableObject
         {
             if (SetProperty(ref _importFileName, value))
                 OnPropertyChanged(nameof(SuggestedFileName));
+        }
+    }
+
+    public bool HasWorkspaceFiles => WorkspaceFiles.Count > 0;
+
+    public WorkspaceFileItem? SelectedWorkspaceFile
+    {
+        get => _selectedWorkspaceFile;
+        set
+        {
+            if (ReferenceEquals(_selectedWorkspaceFile, value))
+                return;
+            if (_selectedWorkspaceFile is not null)
+            {
+                _selectedWorkspaceFile.Text = ImportText;
+                if (_importedDocument is not null && _importedDocument.Text != ImportText)
+                {
+                    _undo.Push(_importedDocument.Text);
+                    _redo.Clear();
+                }
+            }
+            _selectedWorkspaceFile = value;
+            OnPropertyChanged();
+            if (value is null)
+            {
+                _importedDocument = null;
+                _undo = new();
+                _redo = new();
+                ImportText = string.Empty;
+                ImportFileName = string.Empty;
+                ImportedNodes.Clear();
+                ContextWarnings.Clear();
+                NotifyHistory();
+                return;
+            }
+            _undo = value.Undo;
+            _redo = value.Redo;
+            _importedDocument = null;
+            ImportText = value.Text;
+            ImportFileName = value.Path;
+            ReparseImported(recordHistory: false);
+            NotifyHistory();
+        }
+    }
+
+    public WorkspaceFileItem? SelectedRootWorkspaceFile
+    {
+        get => _selectedRootWorkspaceFile;
+        set
+        {
+            if (SetProperty(ref _selectedRootWorkspaceFile, value))
+                RebuildIncludeGraph();
+        }
+    }
+
+    public string ApacheServerRoot
+    {
+        get => _apacheServerRoot;
+        set { if (SetProperty(ref _apacheServerRoot, value)) RebuildIncludeGraph(); }
+    }
+
+    public string IncludeSummary
+    {
+        get => _includeSummary;
+        private set => SetProperty(ref _includeSummary, value);
+    }
+
+    public string DiffPreview
+    {
+        get => _diffPreview;
+        private set => SetProperty(ref _diffPreview, value);
+    }
+
+    public string NewWorkspacePath
+    {
+        get => _newWorkspacePath;
+        set => SetProperty(ref _newWorkspacePath, value);
+    }
+
+    public string NodeSearchText
+    {
+        get => _nodeSearchText;
+        set
+        {
+            if (SetProperty(ref _nodeSearchText, value) && _importedDocument is not null)
+            {
+                RebuildImportedNodes();
+                UpdateImportSummary();
+            }
         }
     }
 
@@ -214,8 +323,33 @@ public sealed class MainWindowViewModel : ObservableObject
             if (!SetProperty(ref _selectedSuggestion, value) || value is null)
                 return;
             NewDirectiveName = value.Name;
+            UpdateArgumentForm(value);
             UpdateDirectiveHint();
         }
+    }
+
+    public bool HasArgumentChoices => ArgumentChoices.Count > 0;
+
+    public string? SelectedArgumentChoice
+    {
+        get => _selectedArgumentChoice;
+        set
+        {
+            if (SetProperty(ref _selectedArgumentChoice, value) && value is not null)
+                NewDirectiveArguments = value;
+        }
+    }
+
+    public string TypedArgumentHint
+    {
+        get => _typedArgumentHint;
+        private set => SetProperty(ref _typedArgumentHint, value);
+    }
+
+    public bool UseTypedValidation
+    {
+        get => _useTypedValidation;
+        set => SetProperty(ref _useTypedValidation, value);
     }
 
     public string ContextWarningSummary
@@ -383,6 +517,7 @@ public sealed class MainWindowViewModel : ObservableObject
                 NotifyHistory();
                 NewBlockName = value == ServerEngine.Nginx ? "location" : "VirtualHost";
                 NewBlockArguments = value == ServerEngine.Nginx ? "/" : "*:80";
+                NewWorkspacePath = value == ServerEngine.Nginx ? "nginx.conf" : "apache2.conf";
                 Regenerate();
                 RefreshExplorer();
                 RefreshDirectiveSuggestions();
@@ -559,6 +694,17 @@ public sealed class MainWindowViewModel : ObservableObject
             $"Module: {entry.Module}\nEngine version and installed modules are not verified.";
     }
 
+    private void UpdateArgumentForm(DocumentedDirective entry)
+    {
+        _argumentForm = DirectiveArgumentForm.Infer(entry);
+        TypedArgumentHint = _argumentForm.Hint;
+        ArgumentChoices.Clear();
+        foreach (var value in _argumentForm.Choices)
+            ArgumentChoices.Add(value);
+        OnPropertyChanged(nameof(HasArgumentChoices));
+        SelectedArgumentChoice = ArgumentChoices.FirstOrDefault();
+    }
+
     private void SelectPage(EditorPage page)
     {
         if (_page == page)
@@ -674,6 +820,108 @@ public sealed class MainWindowViewModel : ObservableObject
         OnPropertyChanged(nameof(CanAppendGeneratedHost));
     }
 
+    public void ImportFiles(IEnumerable<(string Path, string Content)> files)
+    {
+        var rejected = new List<string>();
+        WorkspaceFileItem? firstAdded = null;
+        foreach (var (path, content) in files)
+        {
+            string key;
+            try
+            {
+                key = ConfigWorkspace.NormalizeRelativePath(path);
+            }
+            catch (ArgumentException)
+            {
+                rejected.Add(path);
+                continue;
+            }
+            if (WorkspaceFiles.Any(existing => existing.Path.Equals(key, StringComparison.Ordinal)))
+            {
+                rejected.Add(path + " (duplicate)");
+                continue;
+            }
+            var file = new WorkspaceFileItem(key, content);
+            WorkspaceFiles.Add(file);
+            firstAdded ??= file;
+        }
+        if (firstAdded is null)
+        {
+            ImportDiagnostics = rejected.Count > 0
+                ? "No files added: " + string.Join(", ", rejected.Take(5))
+                : "No files selected.";
+            return;
+        }
+        OnPropertyChanged(nameof(HasWorkspaceFiles));
+        SelectPage(EditorPage.Import);
+        SelectedRootWorkspaceFile ??= firstAdded;
+        SelectedWorkspaceFile = firstAdded;
+        if (rejected.Count > 0)
+            ImportDiagnostics = "Skipped duplicate/invalid project paths: " +
+                string.Join(", ", rejected.Take(5));
+        RebuildIncludeGraph();
+    }
+
+    private void AddWorkspaceFile()
+    {
+        string path;
+        try
+        {
+            path = ConfigWorkspace.NormalizeRelativePath(NewWorkspacePath);
+        }
+        catch (ArgumentException error)
+        {
+            ImportDiagnostics = error.Message;
+            return;
+        }
+        if (WorkspaceFiles.Any(item => item.Path.Equals(path, StringComparison.Ordinal)))
+        {
+            ImportDiagnostics = $"Workspace already contains {path}.";
+            return;
+        }
+        ImportFiles([(path, string.Empty)]);
+    }
+
+    private void RemoveSelectedWorkspaceFile()
+    {
+        if (SelectedWorkspaceFile is not { } target)
+            return;
+        var next = WorkspaceFiles.FirstOrDefault(file => !ReferenceEquals(file, target));
+        SelectedWorkspaceFile = next;
+        WorkspaceFiles.Remove(target);
+        if (ReferenceEquals(SelectedRootWorkspaceFile, target))
+            SelectedRootWorkspaceFile = next;
+        OnPropertyChanged(nameof(HasWorkspaceFiles));
+        RebuildIncludeGraph();
+    }
+
+    public ConfigWorkspace ExportWorkspaceSnapshot()
+    {
+        var snapshot = new ConfigWorkspace();
+        foreach (var file in WorkspaceFiles)
+            snapshot.AddOrUpdate(file.Path, ReferenceEquals(file, SelectedWorkspaceFile)
+                ? ImportText : file.Text);
+        return snapshot;
+    }
+
+    private void RebuildIncludeGraph()
+    {
+        IncludeEntries.Clear();
+        if (SelectedRootWorkspaceFile is not { } root || WorkspaceFiles.Count == 0)
+        {
+            IncludeSummary = "Import multiple files to inspect include relationships.";
+            return;
+        }
+        var graph = ExportWorkspaceSnapshot().AnalyzeIncludes(SelectedEngine,
+            root.Path, string.IsNullOrWhiteSpace(ApacheServerRoot) ? null : ApacheServerRoot.Trim());
+        IncludeSummary = $"{graph.VisitedFiles.Count} visited file(s), " +
+            $"{graph.Edges.Count} include edge(s), {graph.Issues.Count} issue(s).";
+        foreach (var edge in graph.Edges)
+            IncludeEntries.Add($"{edge.From} → {edge.To}" + (edge.Optional ? " (optional)" : ""));
+        foreach (var issue in graph.Issues)
+            IncludeEntries.Add($"WARNING {issue.File}: {issue.Message}");
+    }
+
     public void ParseImported() => ReparseImported(recordHistory: true);
 
     private void ReparseImported(bool recordHistory)
@@ -686,6 +934,26 @@ public sealed class MainWindowViewModel : ObservableObject
         }
 
         _importedDocument = ConfigSyntaxDocument.Parse(SelectedEngine, ImportText);
+        RebuildImportedNodes();
+        ContextWarnings.Clear();
+        foreach (var warning in ConfigContextAnalyzer.Analyze(_importedDocument, _catalog, ImportFileName))
+            ContextWarnings.Add(warning);
+        ContextWarningSummary = $"{ContextWarnings.Count} advisory context warning(s). " +
+            "Unknown directives are preserved; warnings do not block export.";
+        UpdateImportSummary();
+        ImportDiagnostics = string.Join(Environment.NewLine,
+            _importedDocument.Diagnostics.Take(8).Select(d => $"At {d.Offset}: {d.Message}"));
+        DiffPreview = SelectedWorkspaceFile is { } file
+            ? ConfigTextDiff.Build(file.OriginalText, ImportText)
+            : "Import one or more files to compare changes.";
+        RebuildIncludeGraph();
+    }
+
+    private void RebuildImportedNodes()
+    {
+        if (_importedDocument is null)
+            return;
+        var previous = SelectedImportNode?.Node;
         SelectedImportNode = null;
         ImportedNodes.Clear();
 
@@ -695,24 +963,28 @@ public sealed class MainWindowViewModel : ObservableObject
             {
                 if (node.Kind == ConfigNodeKind.Trivia)
                     continue;
-                ImportedNodes.Add(new ConfigNodeListItem(node, depth));
+                if (string.IsNullOrWhiteSpace(NodeSearchText) ||
+                    node.Name.Contains(NodeSearchText.Trim(), StringComparison.OrdinalIgnoreCase) ||
+                    node.Kind.ToString().Contains(NodeSearchText.Trim(), StringComparison.OrdinalIgnoreCase))
+                    ImportedNodes.Add(new ConfigNodeListItem(node, depth));
                 AppendNodes(node.Children, depth + 1);
             }
         }
 
         AppendNodes(_importedDocument.Nodes, 0);
-        SelectedImportNode = ImportedNodes.FirstOrDefault();
-        ContextWarnings.Clear();
-        foreach (var warning in ConfigContextAnalyzer.Analyze(_importedDocument, _catalog, ImportFileName))
-            ContextWarnings.Add(warning);
-        ContextWarningSummary = $"{ContextWarnings.Count} advisory context warning(s). " +
-            "Unknown directives are preserved; warnings do not block export.";
+        SelectedImportNode = ImportedNodes.FirstOrDefault(item => ReferenceEquals(item.Node, previous))
+            ?? ImportedNodes.FirstOrDefault();
+    }
+
+    private void UpdateImportSummary()
+    {
+        if (_importedDocument is null)
+            return;
+        var total = _importedDocument.AllNodes.Count(n => n.Kind != ConfigNodeKind.Trivia);
         ImportSummary = $"{_importedDocument.VirtualHosts.Count} Virtual Hosts · " +
-            $"{ImportedNodes.Count} syntax nodes · " +
+            $"{ImportedNodes.Count}/{total} nodes shown · " +
             $"{_importedDocument.Diagnostics.Count} parser diagnostics · " +
             $"{ContextWarnings.Count} context warnings";
-        ImportDiagnostics = string.Join(Environment.NewLine,
-            _importedDocument.Diagnostics.Take(8).Select(d => $"At {d.Offset}: {d.Message}"));
     }
 
     private void NotifyHistory()
@@ -753,9 +1025,23 @@ public sealed class MainWindowViewModel : ObservableObject
     private ConfigSyntaxNode? InsertionScope(ConfigSyntaxDocument doc) =>
         ConfigBlockEditor.GetInsertionScope(doc, SelectedImportNode?.Node);
 
-    private void AddDirectiveToSelection() =>
+    private void AddDirectiveToSelection()
+    {
+        if (SelectedSuggestion is { } suggested &&
+            suggested.Name.Equals(NewDirectiveName, SelectedEngine == ServerEngine.Nginx
+                ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase) &&
+            _argumentForm is { } form)
+        {
+            var error = form.Validate(NewDirectiveArguments, ignoreForm: !UseTypedValidation);
+            if (error is not null)
+            {
+                ImportDiagnostics = $"Argument form: {error} Disable typed validation for raw syntax.";
+                return;
+            }
+        }
         ApplyEditorOperation(doc => ConfigBlockEditor.AddDirective(
             doc, InsertionScope(doc), NewDirectiveName, NewDirectiveArguments));
+    }
 
     private void AddBlockToSelection() =>
         ApplyEditorOperation(doc => ConfigBlockEditor.AddBlock(
