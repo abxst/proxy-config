@@ -4,13 +4,13 @@ Proxy Config keeps the UI independent from server-specific syntax.
 
 Desktop UI -> typed project models -> validation -> NGINX / Apache generators.
 
-Import path: NGINX / Apache source -> text-preserving syntax AST -> selected-node replacement or generated-host insertion -> reparsed text -> export.
+Import path: NGINX / Apache source -> text-preserving syntax AST -> selected-node replacement, structural multi-block operation or generated-host insertion -> reparsed text -> export.
 
 ## Projects
 
 - `ProxyConfig.App`: Avalonia desktop shell, static-site form, offline explorer and Save dialog.
 - `ProxyConfig.Core`: shared models, static-site validation and embedded documentation catalog.
-- `ProxyConfig.Core.Syntax`: immutable source spans, structural parsers, Virtual Host insertion and offline include graph.
+- `ProxyConfig.Core.Syntax`: immutable source spans, structural parsers, structural block/directive mutations, Virtual Host insertion and offline include graph.
 - `ProxyConfig.Nginx`: NGINX static-site generator.
 - `ProxyConfig.Apache`: Apache HTTP Server static-site generator.
 - `ProxyConfig.Tests`: regression tests for the generators and catalog.
@@ -45,7 +45,7 @@ Apache proxying requires `mod_proxy` + `mod_proxy_http`; WebSocket upgrade requi
 
 ## Round-trip requirement
 
-The first text-preserving import/export implementation is available. Every syntax node refers to an exact source span; replacing a node only changes that span and reparses the result. Unknown directives and comments are retained without normalization.
+The text-preserving import/export implementation supports selected-node replacement and syntactically checked insertion of individual directives/blocks, deletion, duplication and within-parent reordering. Every syntax node refers to an exact source span; untouched text remains unmodified. Reordering refuses to cross comments rather than guessing their attachment; the UI retains snapshots for undo/redo.
 
 The include graph resolves only from an explicitly supplied map of files. It does not read arbitrary system paths, follow target-server filesystem links, or deploy. Full semantic validation and argument typing remain separate future work.
 
