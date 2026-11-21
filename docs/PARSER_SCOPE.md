@@ -9,6 +9,7 @@
 - Insert NGINX/Apache directives and block containers into a selected parent, duplicate or delete nodes, and move sibling nodes up/down where there are no attached comments. A root-scope option permits additional top-level Virtual Hosts.
 - Validate an inserted fragment as a single structurally parseable syntax node before changing the document. It does not validate semantic context or values.
 - Search documented directive names and inspect syntax, context and module hints in the editor; undo/redo applied structural and parsed text changes.
+- Report advisory warnings for known directives placed in contexts not listed by upstream docs, display source line numbers, and optionally hide clearly incompatible directive suggestions.
 - Identify Virtual Hosts and append another generated NGINX server (inside an existing `http` block when present) or Apache `VirtualHost`.
 - Evaluate a finite in-memory set of files for `include` / `Include` / `IncludeOptional` edges, wildcards, missing required paths, circular references and recursion depth.
 - Import UTF-8 configuration through Avalonia's open dialog; export the current UTF-8 text through its save dialog.
@@ -16,6 +17,7 @@
 ## Explicit limitations
 
 - Parsing is structural, not a full NGINX/Apache grammar or validation against a specific binary. Invalid values inside syntactically well-formed directives are not diagnosed yet.
+- Context warnings are conservative. Unknown directives or ambiguous third-party module contexts are kept without a warning. A context match does not guarantee validity on a particular installed server.
 - Inserted directives must use single-line arguments; multi-line and compound snippets are intentionally rejected. Use direct node replacement for advanced raw snippets.
 - The visual editor currently reorders only within the same parent. Reorder across comments is blocked to avoid silently moving comments between directives.
 - Some unusual constructs (for example comments embedded within unfinished directives, uncommon Apache container formatting or non-UTF-8 encodings) may produce structural diagnostics. Original text is still retained.

@@ -31,12 +31,14 @@
 - [ ] Full directive-level grammar and semantic validation (M3)
 - [ ] Project-level multi-file import, Apache ServerRoot resolution in UI and encoding audit
 
-## M3 — Validation
+## M3 — Validation (partially shipped in v0.5)
 
-- Syntax and argument validation
-- Context/module/version checks
-- Reference and dependency diagnostics
-- Security lint warnings without automatic rewriting
+- [x] Structural syntax check for inserted directives/blocks (v0.4)
+- [x] Non-blocking, catalog-backed context mismatch warnings for known directives (v0.5)
+- [x] Scope-aware directive suggestions, including NGINX HTTP/Stream/Mail and Apache containers (v0.5)
+- [ ] Typed argument grammars and validation for individual directives
+- [ ] Exact installed module, edition/platform and version compatibility checks
+- [ ] Reference/dependency diagnostics, security lint warnings without automatic rewriting
 
 ## M4 — Visual configuration editor (partially shipped in v0.4)
 
@@ -47,7 +49,7 @@
 - [x] **Nested multi-block:** construct multiple NGINX brace blocks and Apache containers by block name and arguments, including location/Directory/Location
 - [x] Add, remove, duplicate and reorder sibling blocks/directives while preserving unmodified source spans; moves across comments are deliberately blocked
 - [ ] Registry-driven typed property editor and validation for each directive argument
-- [ ] Verified context-aware containment, module/version compatibility and semantic diagnostics (M3)
+- [ ] Verified, target-server-aware context/module/version compatibility and semantic diagnostics (M3; advisory context checks implemented)
 - [ ] Move blocks across different parents, drag and drop, and command palette
 - [ ] Project-level multi-file editor and per-block preset forms for host/route/upstream settings
 

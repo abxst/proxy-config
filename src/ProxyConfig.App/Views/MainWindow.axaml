@@ -39,7 +39,7 @@
                      Text="Generate static sites, reverse proxies and redirects. Browse the public directive catalog offline." />
           <Separator Margin="0,12" />
           <TextBlock Margin="8,0" TextWrapping="Wrap" Opacity="0.55" FontSize="12"
-                     Text="Multi-block editing, directive suggestions and undo/redo are available in Import / Editor. Typed argument forms are planned next." />
+                     Text="Multi-block editing, context advisories and undo/redo are available in Import / Editor. Typed argument forms are planned next." />
         </StackPanel>
       </Border>
 
@@ -258,8 +258,10 @@
               <ScrollViewer MaxHeight="290">
                 <StackPanel Margin="6,10,6,6" Spacing="7">
                   <TextBlock FontSize="12" TextWrapping="Wrap" Opacity="0.7"
-                             Text="Search offline documentation, or type any directive manually." />
+                             Text="Search upstream documentation, or type any directive manually. Scope checks are advisory." />
                   <TextBox PlaceholderText="Search directive..." Text="{Binding DirectiveSearchText, UpdateSourceTrigger=PropertyChanged}" />
+                  <CheckBox Content="Hide directives known to be incompatible with this context"
+                            IsChecked="{Binding HideIncompatibleDirectives}" FontSize="11" />
                   <ListBox Height="88" ItemsSource="{Binding DirectiveSuggestions}"
                            SelectedItem="{Binding SelectedSuggestion}">
                     <ListBox.ItemTemplate>
@@ -289,7 +291,23 @@
                          Text="{Binding NewBlockArguments, UpdateSourceTrigger=PropertyChanged}" />
                 <Button Command="{Binding AddBlockCommand}" Content="Add block to selected scope" />
                 <TextBlock FontSize="11" Opacity="0.6" TextWrapping="Wrap"
-                           Text="Structural syntax is checked. The app does not guarantee semantic validity or module availability." />
+                           Text="Structural syntax is checked. Context warnings appear under Diagnostics. Module/edition/version support is not guaranteed." />
+              </StackPanel>
+            </TabItem>
+            <TabItem Header="Diagnostics">
+              <StackPanel Margin="6,10,6,6" Spacing="8">
+                <TextBlock FontSize="12" TextWrapping="Wrap" Opacity="0.7"
+                           Text="{Binding ContextWarningSummary}" />
+                <ListBox Height="185" ItemsSource="{Binding ContextWarnings}">
+                  <ListBox.ItemTemplate>
+                    <DataTemplate>
+                      <TextBlock FontSize="12" Margin="2,4" Foreground="DarkOrange"
+                                 Text="{Binding Display}" TextWrapping="Wrap" />
+                    </DataTemplate>
+                  </ListBox.ItemTemplate>
+                </ListBox>
+                <TextBlock FontSize="11" TextWrapping="Wrap" Opacity="0.6"
+                           Text="Warnings use published directive contexts. Unknown/conditional scopes and module availability cannot be fully validated offline." />
               </StackPanel>
             </TabItem>
           </TabControl>

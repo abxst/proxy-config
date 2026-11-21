@@ -60,6 +60,8 @@ public sealed class MainWindowViewModel : ObservableObject
     private string _newBlockArguments = "/";
     private string _directiveHint = string.Empty;
     private string _editorScopeContext = "main";
+    private string _contextWarningSummary = string.Empty;
+    private bool _hideIncompatibleDirectives;
     private readonly Stack<string> _undo = new();
     private readonly Stack<string> _redo = new();
     private string _preview = string.Empty;
@@ -114,6 +116,7 @@ public sealed class MainWindowViewModel : ObservableObject
     public ObservableCollection<ConfigNodeListItem> ImportedNodes { get; } = [];
     public ObservableCollection<DocumentedDirective> SearchResults { get; } = [];
     public ObservableCollection<DocumentedDirective> DirectiveSuggestions { get; } = [];
+    public ObservableCollection<ConfigContextAnalyzer.Warning> ContextWarnings { get; } = [];
     public IReadOnlyList<ServerEngine> ServerEngines { get; } = Enum.GetValues<ServerEngine>();
     public IReadOnlyList<TargetPlatform> TargetPlatforms { get; } = Enum.GetValues<TargetPlatform>();
     public IReadOnlyList<int> RedirectStatuses { get; } = [301, 302, 307, 308];
@@ -180,6 +183,7 @@ public sealed class MainWindowViewModel : ObservableObject
                     ? _importedDocument.GetText(value.Node) : string.Empty;
                 EditorScopeContext = _importedDocument is not null
                     ? ConfigBlockEditor.GetContext(_importedDocument, value?.Node) : "main";
+                RefreshDirectiveSuggestions();
             }
         }
     }
@@ -196,6 +200,12 @@ public sealed class MainWindowViewModel : ObservableObject
         set { if (SetProperty(ref _directiveSearchText, value)) RefreshDirectiveSuggestions(); }
     }
 
+    public bool HideIncompatibleDirectives
+    {
+        get => _hideIncompatibleDirectives;
+        set { if (SetProperty(ref _hideIncompatibleDirectives, value)) RefreshDirectiveSuggestions(); }
+    }
+
     public DocumentedDirective? SelectedSuggestion
     {
         get => _selectedSuggestion;
@@ -204,9 +214,14 @@ public sealed class MainWindowViewModel : ObservableObject
             if (!SetProperty(ref _selectedSuggestion, value) || value is null)
                 return;
             NewDirectiveName = value.Name;
-            DirectiveHint = $"Syntax: {value.Syntax}\nContext: {value.Context}\nModule: {value.Module}\n" +
-                "Reference only: engine version, available module and context are not verified.";
+            UpdateDirectiveHint();
         }
+    }
+
+    public string ContextWarningSummary
+    {
+        get => _contextWarningSummary;
+        private set => SetProperty(ref _contextWarningSummary, value);
     }
 
     public string NewDirectiveName
@@ -504,13 +519,44 @@ public sealed class MainWindowViewModel : ObservableObject
     private void RefreshDirectiveSuggestions()
     {
         var server = SelectedEngine == ServerEngine.Nginx ? "nginx" : "apache";
-        var results = _catalog.Search(server, DirectiveSearchText).Take(100);
+        var scope = _importedDocument is not null &&
+            _importedDocument.Text == ImportText
+            ? ConfigBlockEditor.GetInsertionScope(_importedDocument, SelectedImportNode?.Node)
+            : null;
+        var results = _catalog.Search(server, DirectiveSearchText)
+            .Where(entry => !HideIncompatibleDirectives || _importedDocument is null ||
+                ConfigContextAnalyzer.AssessInsertion(_importedDocument, scope, entry, ImportFileName)
+                    != ConfigContextAnalyzer.Verdict.Incompatible)
+            .Take(100);
         DirectiveSuggestions.Clear();
         foreach (var entry in results)
             DirectiveSuggestions.Add(entry);
         SelectedSuggestion = DirectiveSuggestions.FirstOrDefault();
         if (SelectedSuggestion is null)
             DirectiveHint = "No matching catalog entry. You can still enter a directive name manually.";
+        else
+            UpdateDirectiveHint();
+    }
+
+    private void UpdateDirectiveHint()
+    {
+        if (SelectedSuggestion is not { } entry)
+            return;
+        var verdict = _importedDocument is not null &&
+            _importedDocument.Text == ImportText
+            ? ConfigContextAnalyzer.AssessInsertion(
+                _importedDocument,
+                ConfigBlockEditor.GetInsertionScope(_importedDocument, SelectedImportNode?.Node),
+                entry, ImportFileName)
+            : ConfigContextAnalyzer.Verdict.Unknown;
+        var advisory = verdict switch
+        {
+            ConfigContextAnalyzer.Verdict.Compatible => "Documented context matches this scope.",
+            ConfigContextAnalyzer.Verdict.Incompatible => "WARNING: documented context does not match selected scope.",
+            _ => "Context could not be verified for this scope."
+        };
+        DirectiveHint = $"{advisory}\nSyntax: {entry.Syntax}\nContext: {entry.Context}\n" +
+            $"Module: {entry.Module}\nEngine version and installed modules are not verified.";
     }
 
     private void SelectPage(EditorPage page)
@@ -656,9 +702,15 @@ public sealed class MainWindowViewModel : ObservableObject
 
         AppendNodes(_importedDocument.Nodes, 0);
         SelectedImportNode = ImportedNodes.FirstOrDefault();
+        ContextWarnings.Clear();
+        foreach (var warning in ConfigContextAnalyzer.Analyze(_importedDocument, _catalog, ImportFileName))
+            ContextWarnings.Add(warning);
+        ContextWarningSummary = $"{ContextWarnings.Count} advisory context warning(s). " +
+            "Unknown directives are preserved; warnings do not block export.";
         ImportSummary = $"{_importedDocument.VirtualHosts.Count} Virtual Hosts · " +
             $"{ImportedNodes.Count} syntax nodes · " +
-            $"{_importedDocument.Diagnostics.Count} diagnostics";
+            $"{_importedDocument.Diagnostics.Count} parser diagnostics · " +
+            $"{ContextWarnings.Count} context warnings";
         ImportDiagnostics = string.Join(Environment.NewLine,
             _importedDocument.Diagnostics.Take(8).Select(d => $"At {d.Offset}: {d.Message}"));
     }
