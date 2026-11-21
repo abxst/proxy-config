@@ -42,6 +42,22 @@ outside the scope of this offline-only app.
 
 ## Multi-file workspace and typed assistance
 
+`ConfigProjectScaffolder` takes one or more named, structurally valid generated
+snippets and emits an in-memory `ConfigWorkspace`. NGINX HTTP hosts/upstreams
+are included under `http` from `conf.d/*.conf`. The standalone Stream preset is
+unwrapped into `stream.d/*.conf` under one root-level `stream` block. Local
+`mime.types` and `fastcgi_params` are bundled when referenced. Apache VirtualHosts
+are written under `sites/*.conf`; `httpd.conf` contains distinct `Listen` ports
+and user-editable `ServerRoot` / optional installed-module configuration.
+The UI exports the selected preset as a full-project ZIP and retains the
+existing single-snippet export. Core callers can compose multiple fragments.
+
+These files are **scaffolds**, not guaranteed portable drop-in installations:
+Apache MPM/module load order, user/group/runtime paths, NGINX dynamic Stream
+modules, certificates and deployment locations are all target-dependent.
+The builder refuses malformed snippets and obvious root-context mistakes,
+but does not replace a real server's `nginx -t` / `httpd -t` check.
+
 `ConfigWorkspace` holds only explicitly imported or user-created logical files,
 using relative paths safe for ZIP export. Its include graph evaluates only those
 files, never resolving external target-server files on disk. The Avalonia import

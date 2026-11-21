@@ -22,6 +22,7 @@
 - The NGINX Stream preset produces a root-scope `stream` block; generated-host appending rejects it because `stream` cannot be nested under `http`.
 - Evaluate a finite in-memory set of files for `include` / `Include` / `IncludeOptional` edges, wildcards, missing required paths, circular references and recursion depth.
 - Import UTF-8, UTF-16 or UTF-32 files (BOM-aware) through Avalonia's open dialog; export individual files and ZIP workspaces using their preserved encodings.
+- Build a multi-file full-project scaffold from valid generated snippets, including root config, NGINX HTTP/Stream includes, MIME/FastCGI support and Apache VirtualHost Listen declarations.
 
 ## Explicit limitations
 
@@ -38,6 +39,7 @@
 - A top-level NGINX HTTP `server` snippet is suitable for a configuration included from an `http` block, not as a standalone full `nginx.conf`; a Stream preset emits a separate main-context `stream` block.
 - Typed argument hints intentionally cover only trivial signatures. Complex parameters, condition-dependent meanings and module/version compatibility still require server-side verification.
 - No server installation, restart, deployment, or server-side write operations are performed.
+- Full-project ZIP is a template with target-dependent module/MPM/runtime assumptions, not a verified self-contained Apache or NGINX distribution. Per-snippet validation only rejects structural and obvious placement mistakes; module and version checks remain future work.
 
 ## Next steps
 
