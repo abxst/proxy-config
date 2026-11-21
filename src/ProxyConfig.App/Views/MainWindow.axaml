@@ -33,6 +33,8 @@
           <Button HorizontalContentAlignment="Left" Command="{Binding ShowReverseProxyCommand}" Content="Reverse Proxy" />
           <Button HorizontalContentAlignment="Left" Command="{Binding ShowRedirectCommand}" Content="HTTP Redirect" />
           <Button HorizontalContentAlignment="Left" Command="{Binding ShowLoadBalancerCommand}" Content="HTTP Load Balancer" />
+          <Button HorizontalContentAlignment="Left" Command="{Binding ShowFastCgiCommand}" Content="FastCGI / PHP-FPM" />
+          <Button HorizontalContentAlignment="Left" Command="{Binding ShowStreamProxyCommand}" Content="TCP / UDP Stream (NGINX)" />
           <Button HorizontalContentAlignment="Left" Command="{Binding ShowImportCommand}" Content="Import / Editor" />
           <Button HorizontalContentAlignment="Left" Command="{Binding ShowExplorerCommand}" Content="Directive Explorer" />
           <Separator Margin="0,12" />
@@ -153,6 +155,41 @@
                          Text="Apache preset supports request-based round-robin only. LeastConnections and ClientIpHash require NGINX." />
               <CheckBox Content="Strip the external URL prefix" IsChecked="{Binding StripPrefix}" />
               <CheckBox Content="Preserve incoming Host header" IsChecked="{Binding PreserveHost}" />
+            </StackPanel>
+
+            <StackPanel Spacing="12" IsVisible="{Binding IsFastCgi}">
+              <TextBlock FontSize="24" FontWeight="SemiBold" Text="FastCGI / PHP-FPM" />
+              <TextBlock FontSize="12" Opacity="0.65" TextWrapping="Wrap"
+                         Text="Generate a static document root plus PHP handler. Requires an existing PHP-FPM service on the target server." />
+              <TextBlock FontWeight="SemiBold" Text="Domain" />
+              <TextBox Text="{Binding Domain, UpdateSourceTrigger=PropertyChanged}" />
+              <TextBlock FontWeight="SemiBold" Text="Listen port" />
+              <NumericUpDown Minimum="1" Maximum="65535" Value="{Binding ListenPort}" />
+              <TextBlock FontWeight="SemiBold" Text="Document root on target server" />
+              <TextBox Text="{Binding StaticDirectory, UpdateSourceTrigger=PropertyChanged}"
+                       PlaceholderText="/srv/www/site" />
+              <TextBlock FontWeight="SemiBold" Text="PHP-FPM host:port" />
+              <TextBox Text="{Binding FpmEndpoint, UpdateSourceTrigger=PropertyChanged}"
+                       PlaceholderText="127.0.0.1:9000" />
+              <TextBlock FontWeight="SemiBold" Text="Index files" />
+              <TextBox Text="{Binding PhpIndexFiles, UpdateSourceTrigger=PropertyChanged}"
+                       PlaceholderText="index.php index.html" />
+              <TextBlock FontSize="12" Opacity="0.6" TextWrapping="Wrap"
+                         Text="NGINX uses fastcgi_pass and fastcgi_params; Apache uses mod_proxy_fcgi with FilesMatch. No PHP-FPM installation is performed." />
+            </StackPanel>
+
+            <StackPanel Spacing="12" IsVisible="{Binding IsStreamProxy}">
+              <TextBlock FontSize="24" FontWeight="SemiBold" Text="TCP / UDP Stream" />
+              <TextBlock FontSize="12" Opacity="0.65" TextWrapping="Wrap"
+                         Text="NGINX-only stream proxy configuration. Requires the optional stream module. This is a main-context stream block, not an HTTP server." />
+              <TextBlock FontWeight="SemiBold" Text="Listen port" />
+              <NumericUpDown Minimum="1" Maximum="65535" Value="{Binding StreamListenPort}" />
+              <TextBlock FontWeight="SemiBold" Text="Target host:port" />
+              <TextBox Text="{Binding StreamTarget, UpdateSourceTrigger=PropertyChanged}"
+                       PlaceholderText="127.0.0.1:9001" />
+              <CheckBox Content="UDP instead of TCP" IsChecked="{Binding StreamUdp}" />
+              <TextBlock FontWeight="SemiBold" Text="Proxy timeout (seconds)" />
+              <NumericUpDown Minimum="1" Maximum="3600" Value="{Binding StreamTimeoutSeconds}" />
             </StackPanel>
 
             <Border IsVisible="{Binding ValidationMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"

@@ -29,7 +29,7 @@
 - [x] Include graph over explicitly supplied files, wildcards and cycle protection
 - [x] Import/editor UI, multi-VirtualHost discovery and appending generated hosts
 - [ ] Full directive-level grammar and semantic validation (M3)
-- [ ] Project-level multi-file import, Apache ServerRoot resolution in UI and encoding audit
+- [x] Project-level multi-file import and encoding audit (v0.6/v0.8); Apache ServerRoot is an explicit workspace option
 
 ## M3 — Validation (partially shipped in v0.5)
 
@@ -68,9 +68,11 @@ Static Website is the first implemented preset. Continue with:
 - [x] Basic TLS paths and custom headers for host presets
 - [x] HTTP load balancer (NGINX upstream round-robin/least_conn/ip_hash; Apache request-based balancer) (v0.9)
 - [ ] gRPC proxying and advanced timeout/buffering
-- [ ] FastCGI/PHP and per-route FastCGI form
+- [x] FastCGI/PHP host preset for both engines (v0.10)
+- [ ] Per-route FastCGI insertion into existing hosts
 - [ ] Advanced TLS profile and certificate options
-- [ ] TCP/UDP stream and mail proxy where supported
+- [x] NGINX TCP/UDP stream forwarding preset (v0.10)
+- [ ] Mail proxy preset where supported
 
 ## M6 — Raw editor and round trip (partially shipped in v0.6)
 

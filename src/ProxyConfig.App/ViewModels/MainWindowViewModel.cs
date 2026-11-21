@@ -12,7 +12,7 @@ namespace ProxyConfig.App.ViewModels;
 
 public sealed class MainWindowViewModel : ObservableObject
 {
-    private enum EditorPage { StaticSite, ReverseProxy, Redirect, LoadBalancer, Explorer, Import }
+    private enum EditorPage { StaticSite, ReverseProxy, Redirect, LoadBalancer, FastCgi, StreamProxy, Explorer, Import }
     private sealed record CrossFileTransfer(
         WorkspaceFileItem Source, WorkspaceFileItem Destination,
         string BeforeSource, string BeforeDestination,
@@ -47,6 +47,12 @@ public sealed class MainWindowViewModel : ObservableObject
     private string _backendOriginsText = "http://127.0.0.1:3000\nhttp://127.0.0.1:3001";
     private string _clusterName = "backend_pool";
     private LoadBalancingMethod _balancingMethod;
+    private string _fpmEndpoint = "127.0.0.1:9000";
+    private string _phpIndexFiles = "index.php index.html";
+    private int _streamListenPort = 9000;
+    private string _streamTarget = "127.0.0.1:9001";
+    private bool _streamUdp;
+    private int _streamTimeoutSeconds = 60;
     private string _proxyUrlPath = "/";
     private bool _stripPrefix = true;
     private bool _preserveHost = true;
@@ -67,6 +73,7 @@ public sealed class MainWindowViewModel : ObservableObject
     private string _nodeReplacementText = string.Empty;
     private string _lastGeneratedText = string.Empty;
     private ServerEngine _lastGeneratedEngine;
+    private EditorPage _lastGeneratedPage;
     private string _searchText = string.Empty;
     private bool _includeVariables;
     private DocumentedDirective? _selectedDirective;
@@ -97,6 +104,8 @@ public sealed class MainWindowViewModel : ObservableObject
         ShowReverseProxyCommand = new RelayCommand(() => SelectPage(EditorPage.ReverseProxy));
         ShowRedirectCommand = new RelayCommand(() => SelectPage(EditorPage.Redirect));
         ShowLoadBalancerCommand = new RelayCommand(() => SelectPage(EditorPage.LoadBalancer));
+        ShowFastCgiCommand = new RelayCommand(() => SelectPage(EditorPage.FastCgi));
+        ShowStreamProxyCommand = new RelayCommand(() => SelectPage(EditorPage.StreamProxy));
         ShowExplorerCommand = new RelayCommand(() => SelectPage(EditorPage.Explorer));
         ShowImportCommand = new RelayCommand(() =>
         {
@@ -130,6 +139,8 @@ public sealed class MainWindowViewModel : ObservableObject
     public IRelayCommand ShowReverseProxyCommand { get; }
     public IRelayCommand ShowRedirectCommand { get; }
     public IRelayCommand ShowLoadBalancerCommand { get; }
+    public IRelayCommand ShowFastCgiCommand { get; }
+    public IRelayCommand ShowStreamProxyCommand { get; }
     public IRelayCommand ShowExplorerCommand { get; }
     public IRelayCommand ShowImportCommand { get; }
     public IRelayCommand ParseImportedCommand { get; }
@@ -171,6 +182,8 @@ public sealed class MainWindowViewModel : ObservableObject
     public bool IsReverseProxy => _page == EditorPage.ReverseProxy;
     public bool IsRedirect => _page == EditorPage.Redirect;
     public bool IsLoadBalancer => _page == EditorPage.LoadBalancer;
+    public bool IsFastCgi => _page == EditorPage.FastCgi;
+    public bool IsStreamProxy => _page == EditorPage.StreamProxy;
     public bool IsHostPreset => IsReverseProxy || IsRedirect;
     public bool IsImport => _page == EditorPage.Import;
     public bool IsGenerator => !IsExplorer && !IsImport;
@@ -181,6 +194,8 @@ public sealed class MainWindowViewModel : ObservableObject
           (_page == EditorPage.ReverseProxy ? "proxy" :
            _page == EditorPage.Redirect ? "redirect" :
            _page == EditorPage.LoadBalancer ? "balancer" :
+           _page == EditorPage.FastCgi ? "php" :
+           _page == EditorPage.StreamProxy ? "stream" :
            _page == EditorPage.Import ? "imported" : "site") + ".conf";
 
     public string ImportText
@@ -460,6 +475,7 @@ public sealed class MainWindowViewModel : ObservableObject
 
     public bool CanAppendGeneratedHost =>
         _lastGeneratedText.Length > 0 && _lastGeneratedEngine == SelectedEngine &&
+        _lastGeneratedPage != EditorPage.StreamProxy &&
         string.IsNullOrEmpty(ValidationMessage);
 
     public string ExportText => IsImport ? ImportText : Preview;
@@ -486,6 +502,42 @@ public sealed class MainWindowViewModel : ObservableObject
     {
         get => _balancingMethod;
         set { if (SetProperty(ref _balancingMethod, value)) Regenerate(); }
+    }
+
+    public string FpmEndpoint
+    {
+        get => _fpmEndpoint;
+        set { if (SetProperty(ref _fpmEndpoint, value)) Regenerate(); }
+    }
+
+    public string PhpIndexFiles
+    {
+        get => _phpIndexFiles;
+        set { if (SetProperty(ref _phpIndexFiles, value)) Regenerate(); }
+    }
+
+    public int StreamListenPort
+    {
+        get => _streamListenPort;
+        set { if (SetProperty(ref _streamListenPort, value)) Regenerate(); }
+    }
+
+    public string StreamTarget
+    {
+        get => _streamTarget;
+        set { if (SetProperty(ref _streamTarget, value)) Regenerate(); }
+    }
+
+    public bool StreamUdp
+    {
+        get => _streamUdp;
+        set { if (SetProperty(ref _streamUdp, value)) Regenerate(); }
+    }
+
+    public int StreamTimeoutSeconds
+    {
+        get => _streamTimeoutSeconds;
+        set { if (SetProperty(ref _streamTimeoutSeconds, value)) Regenerate(); }
     }
 
     public string ProxyUrlPath
@@ -795,6 +847,8 @@ public sealed class MainWindowViewModel : ObservableObject
         OnPropertyChanged(nameof(IsReverseProxy));
         OnPropertyChanged(nameof(IsRedirect));
         OnPropertyChanged(nameof(IsLoadBalancer));
+        OnPropertyChanged(nameof(IsFastCgi));
+        OnPropertyChanged(nameof(IsStreamProxy));
         OnPropertyChanged(nameof(IsHostPreset));
         OnPropertyChanged(nameof(IsGenerator));
         OnPropertyChanged(nameof(IsImport));
@@ -810,6 +864,16 @@ public sealed class MainWindowViewModel : ObservableObject
             return;
 
         ExportStatus = string.Empty;
+        if (IsFastCgi)
+        {
+            RegenerateFastCgi();
+            return;
+        }
+        if (IsStreamProxy)
+        {
+            RegenerateStreamProxy();
+            return;
+        }
         if (IsLoadBalancer)
         {
             RegenerateLoadBalancer();
@@ -925,10 +989,57 @@ public sealed class MainWindowViewModel : ObservableObject
         OnPropertyChanged(nameof(CanAppendGeneratedHost));
     }
 
+    private void RegenerateFastCgi()
+    {
+        var options = new FastCgiOptions
+        {
+            Engine = SelectedEngine,
+            Domain = (Domain ?? string.Empty).Trim(),
+            ListenPort = ListenPort,
+            TargetPlatform = SelectedTargetPlatform,
+            DocumentRoot = (StaticDirectory ?? string.Empty).Trim(),
+            FpmEndpoint = (FpmEndpoint ?? string.Empty).Trim(),
+            IndexFiles = (PhpIndexFiles ?? string.Empty).Split([' ', ',', ';'],
+                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        };
+        var errors = FastCgiValidator.Validate(options);
+        ValidationMessage = string.Join(Environment.NewLine, errors);
+        Preview = errors.Count != 0 ? "# Fix validation errors before generation."
+            : SelectedEngine == ServerEngine.Nginx
+                ? NginxFastCgiGenerator.Generate(options)
+                : ApacheFastCgiGenerator.Generate(options);
+        if (errors.Count == 0)
+            RememberGeneratedPreview();
+        OnPropertyChanged(nameof(CanExport));
+        OnPropertyChanged(nameof(CanAppendGeneratedHost));
+    }
+
+    private void RegenerateStreamProxy()
+    {
+        var options = new StreamProxyOptions
+        {
+            ListenPort = StreamListenPort,
+            TargetEndpoint = (StreamTarget ?? string.Empty).Trim(),
+            Udp = StreamUdp,
+            ProxyTimeoutSeconds = StreamTimeoutSeconds
+        };
+        var errors = StreamProxyValidator.Validate(options).ToList();
+        if (SelectedEngine != ServerEngine.Nginx)
+            errors.Add("Generic TCP/UDP stream proxying is supported only by NGINX in this app.");
+        ValidationMessage = string.Join(Environment.NewLine, errors);
+        Preview = errors.Count != 0 ? "# Fix validation errors before generation."
+            : NginxStreamProxyGenerator.Generate(options);
+        if (errors.Count == 0)
+            RememberGeneratedPreview();
+        OnPropertyChanged(nameof(CanExport));
+        OnPropertyChanged(nameof(CanAppendGeneratedHost));
+    }
+
     private void RememberGeneratedPreview()
     {
         _lastGeneratedText = Preview;
         _lastGeneratedEngine = SelectedEngine;
+        _lastGeneratedPage = _page;
         OnPropertyChanged(nameof(CanAppendGeneratedHost));
     }
 
