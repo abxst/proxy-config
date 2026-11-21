@@ -254,6 +254,31 @@
               </StackPanel>
             </Expander>
 
+            <Expander Header="Multi-preset project composer">
+              <StackPanel Margin="8" Spacing="8">
+                <TextBlock FontSize="12" Opacity="0.7" TextWrapping="Wrap"
+                           Text="{Binding ProjectPresetSummary}" />
+                <Button Command="{Binding QueueProjectPresetCommand}"
+                        IsEnabled="{Binding CanExport}"
+                        Content="+ Add current preset to project" />
+                <ListBox Height="110" ItemsSource="{Binding ProjectPresets}"
+                         SelectedItem="{Binding SelectedProjectPreset}">
+                  <ListBox.ItemTemplate>
+                    <DataTemplate>
+                      <TextBlock Margin="3" FontSize="12" Text="{Binding Display}" />
+                    </DataTemplate>
+                  </ListBox.ItemTemplate>
+                </ListBox>
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <Button Command="{Binding RemoveProjectPresetCommand}" Content="Remove" />
+                  <Button Command="{Binding MoveProjectPresetUpCommand}" Content="Move ↑" />
+                  <Button Command="{Binding MoveProjectPresetDownCommand}" Content="Move ↓" />
+                </StackPanel>
+                <TextBlock FontSize="11" Opacity="0.6" TextWrapping="Wrap"
+                           Text="Queued presets are immutable snapshots. Switch generators to add another site, proxy, load balancer or TCP/UDP stream block; only presets for the selected server enter its ZIP." />
+              </StackPanel>
+            </Expander>
+
             <Border IsVisible="{Binding ValidationMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
                     Padding="12" CornerRadius="8" Background="#22FF4500">
               <TextBlock Foreground="OrangeRed" TextWrapping="Wrap" Text="{Binding ValidationMessage}" />
@@ -271,7 +296,7 @@
               </StackPanel>
               <Button Grid.Column="1" VerticalAlignment="Center" IsEnabled="{Binding CanExport}"
                       Click="SaveConfig_Click" Content="Export .conf" />
-              <Button Grid.Column="2" VerticalAlignment="Center" IsEnabled="{Binding CanExport}"
+              <Button Grid.Column="2" VerticalAlignment="Center" IsEnabled="{Binding CanExportFullProject}"
                       Click="SaveFullProjectZip_Click" Content="Full project ZIP" />
             </Grid>
           </Border>

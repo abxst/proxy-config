@@ -149,7 +149,7 @@ public partial class MainWindow : Window
     private async void SaveFullProjectZip_Click(object? sender, RoutedEventArgs e)
     {
         if (DataContext is not MainWindowViewModel viewModel || !viewModel.IsGenerator ||
-            !viewModel.CanExport)
+            !viewModel.CanExportFullProject)
             return;
 
         try

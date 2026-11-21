@@ -29,6 +29,7 @@ public sealed class MainWindowViewModel : ObservableObject
     private string _projectTargetVersion = string.Empty;
     private bool _auditInstalledModules;
     private string _projectInstalledModulesText = string.Empty;
+    private ProjectPresetItem? _selectedProjectPreset;
     private string _diffPreview = string.Empty;
     private string _nodeSearchText = string.Empty;
     private string _newWorkspacePath = "nginx.conf";
@@ -156,6 +157,10 @@ public sealed class MainWindowViewModel : ObservableObject
         AddIpPolicyCommand = new RelayCommand(AddIpPolicyToSelection);
         MoveToWorkspaceFileCommand = new RelayCommand(MoveToWorkspaceFile);
         UndoWorkspaceTransferCommand = new RelayCommand(UndoWorkspaceTransfer);
+        QueueProjectPresetCommand = new RelayCommand(QueueProjectPreset);
+        RemoveProjectPresetCommand = new RelayCommand(RemoveProjectPreset);
+        MoveProjectPresetUpCommand = new RelayCommand(() => MoveProjectPreset(-1));
+        MoveProjectPresetDownCommand = new RelayCommand(() => MoveProjectPreset(1));
         RefreshExplorer();
         RefreshDirectiveSuggestions();
         Regenerate();
@@ -192,6 +197,10 @@ public sealed class MainWindowViewModel : ObservableObject
     public IRelayCommand AddIpPolicyCommand { get; }
     public IRelayCommand MoveToWorkspaceFileCommand { get; }
     public IRelayCommand UndoWorkspaceTransferCommand { get; }
+    public IRelayCommand QueueProjectPresetCommand { get; }
+    public IRelayCommand RemoveProjectPresetCommand { get; }
+    public IRelayCommand MoveProjectPresetUpCommand { get; }
+    public IRelayCommand MoveProjectPresetDownCommand { get; }
     public ObservableCollection<ConfigNodeListItem> ImportedNodes { get; } = [];
     public ObservableCollection<DocumentedDirective> SearchResults { get; } = [];
     public ObservableCollection<DocumentedDirective> DirectiveSuggestions { get; } = [];
@@ -200,6 +209,7 @@ public sealed class MainWindowViewModel : ObservableObject
     public ObservableCollection<ConfigSecurityLinter.Finding> SecurityFindings { get; } = [];
     public ObservableCollection<ConfigProjectAnalyzer.Finding> ProjectFindings { get; } = [];
     public ObservableCollection<ConfigTargetCompatibility.Finding> CompatibilityFindings { get; } = [];
+    public ObservableCollection<ProjectPresetItem> ProjectPresets { get; } = [];
     public ObservableCollection<WorkspaceFileItem> WorkspaceFiles { get; } = [];
     public ObservableCollection<BlockTargetItem> BlockTargets { get; } = [];
     public ObservableCollection<BlockTargetItem> CrossFileBlockTargets { get; } = [];
@@ -229,6 +239,17 @@ public sealed class MainWindowViewModel : ObservableObject
     public bool IsHttpGenerator => IsStaticSite || IsHostPreset || IsLoadBalancer || IsFastCgi;
     public bool IsNginxEngine => SelectedEngine == ServerEngine.Nginx;
     public bool IsApacheEngine => SelectedEngine == ServerEngine.Apache;
+    public bool CanExportFullProject => IsGenerator &&
+        (CanExport || ProjectPresets.Any(p => p.Engine == SelectedEngine));
+    public string ProjectPresetSummary =>
+        $"{ProjectPresets.Count(p => p.Engine == SelectedEngine)} queued preset(s) for {SelectedEngine}. " +
+        "When queued, the ZIP contains those presets only; otherwise it exports the current preview.";
+
+    public ProjectPresetItem? SelectedProjectPreset
+    {
+        get => _selectedProjectPreset;
+        set => SetProperty(ref _selectedProjectPreset, value);
+    }
 
     public string ProjectApacheServerRoot
     {
@@ -826,6 +847,7 @@ public sealed class MainWindowViewModel : ObservableObject
                 OnPropertyChanged(nameof(CanAppendGeneratedHost));
                 OnPropertyChanged(nameof(IsNginxEngine));
                 OnPropertyChanged(nameof(IsApacheEngine));
+                NotifyProjectComposer();
             }
         }
     }
@@ -923,13 +945,21 @@ public sealed class MainWindowViewModel : ObservableObject
     public string Preview
     {
         get => _preview;
-        private set => SetProperty(ref _preview, value);
+        private set
+        {
+            if (SetProperty(ref _preview, value))
+                OnPropertyChanged(nameof(CanExportFullProject));
+        }
     }
 
     public string ValidationMessage
     {
         get => _validationMessage;
-        private set => SetProperty(ref _validationMessage, value);
+        private set
+        {
+            if (SetProperty(ref _validationMessage, value))
+                OnPropertyChanged(nameof(CanExportFullProject));
+        }
     }
 
     public bool CanExport => IsImport
@@ -1021,6 +1051,7 @@ public sealed class MainWindowViewModel : ObservableObject
         OnPropertyChanged(nameof(IsStreamProxy));
         OnPropertyChanged(nameof(IsHostPreset));
         OnPropertyChanged(nameof(IsGenerator));
+        OnPropertyChanged(nameof(CanExportFullProject));
         OnPropertyChanged(nameof(IsHttpGenerator));
         OnPropertyChanged(nameof(IsImport));
         OnPropertyChanged(nameof(SuggestedFileName));
@@ -1375,20 +1406,101 @@ public sealed class MainWindowViewModel : ObservableObject
 
     public ConfigWorkspace CreateFullProjectSnapshot()
     {
-        if (!IsGenerator || !CanExport)
-            throw new InvalidOperationException("Generate a valid preset before exporting its project.");
+        if (!IsGenerator || !CanExportFullProject)
+            throw new InvalidOperationException("Generate or queue a valid preset before exporting.");
 
-        return ConfigProjectScaffolder.Create(
-            new ConfigProjectScaffolder.Options
-            {
-                Engine = SelectedEngine,
-                NginxWorkerConnections = ProjectNginxWorkerConnections,
-                ApacheServerRoot = ProjectApacheServerRoot,
-                ApacheModuleInclude = ProjectApacheModuleInclude
-            },
+        var queued = ProjectPresets.Where(item => item.Engine == SelectedEngine)
+            // Include globs are processed in filename order. Numeric prefixes
+            // make composer Move ↑/↓ affect the actual target include order.
+            .Select((item, index) => new ConfigProjectScaffolder.Fragment(
+                $"{index + 1:000}-{item.Name}", item.Text)).ToArray();
+        ConfigProjectScaffolder.Fragment[] fragments = queued.Length > 0 ? queued :
             [new ConfigProjectScaffolder.Fragment(
                 SuggestedFileName.Replace(".conf", string.Empty, StringComparison.Ordinal),
-                Preview)]);
+                Preview)];
+        return ConfigProjectScaffolder.Create(ProjectScaffoldOptions(), fragments);
+    }
+
+    private ConfigProjectScaffolder.Options ProjectScaffoldOptions() => new()
+    {
+        Engine = SelectedEngine,
+        NginxWorkerConnections = ProjectNginxWorkerConnections,
+        ApacheServerRoot = ProjectApacheServerRoot,
+        ApacheModuleInclude = ProjectApacheModuleInclude
+    };
+
+    private void QueueProjectPreset()
+    {
+        if (!IsGenerator || !CanExport)
+        {
+            ExportStatus = "Generate a valid preset before adding it to the project.";
+            return;
+        }
+        if (ProjectPresets.Count >= 128)
+        {
+            ExportStatus = "Composer limit reached (128 presets).";
+            return;
+        }
+        var baseName = SuggestedFileName.Replace(".conf", string.Empty, StringComparison.Ordinal);
+        var name = baseName;
+        var suffix = 2;
+        while (ProjectPresets.Any(item => item.Engine == SelectedEngine &&
+                                          item.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
+            name = $"{baseName}-{suffix++}";
+        var item = new ProjectPresetItem(name, SelectedEngine, Preview);
+        try
+        {
+            var fragments = ProjectPresets.Where(p => p.Engine == SelectedEngine)
+                .Select(p => new ConfigProjectScaffolder.Fragment(p.Name, p.Text))
+                .Append(new ConfigProjectScaffolder.Fragment(item.Name, item.Text))
+                .ToArray();
+            var candidate = ConfigProjectScaffolder.Create(ProjectScaffoldOptions(), fragments);
+            if (ConfigProjectAnalyzer.Analyze(candidate, SelectedEngine,
+                    SelectedEngine == ServerEngine.Nginx ? "nginx.conf" : "httpd.conf")
+                .Any(finding => finding.Code == "duplicate-host"))
+            {
+                ExportStatus = "A matching hostname/listener already exists in the queued project.";
+                return;
+            }
+            ProjectPresets.Add(item);
+            SelectedProjectPreset = item;
+            NotifyProjectComposer();
+            ExportStatus = $"Queued {item.Name} for {item.Engine}.";
+        }
+        catch (ArgumentException ex)
+        {
+            ExportStatus = $"Cannot queue preset: {ex.Message}";
+        }
+    }
+
+    private void RemoveProjectPreset()
+    {
+        if (SelectedProjectPreset is not { } item)
+            return;
+        var index = ProjectPresets.IndexOf(item);
+        ProjectPresets.Remove(item);
+        SelectedProjectPreset = ProjectPresets.Count == 0 ? null :
+            ProjectPresets[Math.Min(index, ProjectPresets.Count - 1)];
+        NotifyProjectComposer();
+        ExportStatus = $"Removed {item.Name} from the project.";
+    }
+
+    private void MoveProjectPreset(int direction)
+    {
+        if (SelectedProjectPreset is not { } item)
+            return;
+        var index = ProjectPresets.IndexOf(item);
+        var destination = index + direction;
+        if (index < 0 || destination < 0 || destination >= ProjectPresets.Count)
+            return;
+        ProjectPresets.Move(index, destination);
+        NotifyProjectComposer();
+    }
+
+    private void NotifyProjectComposer()
+    {
+        OnPropertyChanged(nameof(ProjectPresetSummary));
+        OnPropertyChanged(nameof(CanExportFullProject));
     }
 
     private void RebuildIncludeGraph()
