@@ -32,13 +32,14 @@
           <Button HorizontalContentAlignment="Left" Command="{Binding ShowStaticSiteCommand}" Content="Static Website" />
           <Button HorizontalContentAlignment="Left" Command="{Binding ShowReverseProxyCommand}" Content="Reverse Proxy" />
           <Button HorizontalContentAlignment="Left" Command="{Binding ShowRedirectCommand}" Content="HTTP Redirect" />
+          <Button HorizontalContentAlignment="Left" Command="{Binding ShowImportCommand}" Content="Import / Editor" />
           <Button HorizontalContentAlignment="Left" Command="{Binding ShowExplorerCommand}" Content="Directive Explorer" />
           <Separator Margin="0,12" />
           <TextBlock Margin="8,0" TextWrapping="Wrap" Opacity="0.58"
                      Text="Generate static sites, reverse proxies and redirects. Browse the public directive catalog offline." />
           <Separator Margin="0,12" />
           <TextBlock Margin="8,0" TextWrapping="Wrap" Opacity="0.55" FontSize="12"
-                     Text="Load balancing, full typed directive editing, AST parser and config import are planned next." />
+                     Text="Import and edit existing config without losing unknown directives. Typed property forms and load balancing are planned next." />
         </StackPanel>
       </Border>
 
@@ -207,6 +208,64 @@
             <TextBox Text="{Binding DocumentationUrl}" IsReadOnly="True" TextWrapping="Wrap" />
           </StackPanel>
         </ScrollViewer>
+      </Grid>
+
+      <Grid Grid.Column="1" IsVisible="{Binding IsImport}" ColumnDefinitions="350,*">
+        <Grid Grid.Column="0" RowDefinitions="Auto,Auto,Auto,*,Auto,Auto"
+              Margin="18,20,8,16" RowSpacing="12">
+          <StackPanel Spacing="6">
+            <TextBlock FontSize="24" FontWeight="SemiBold" Text="Import / Editor" />
+            <TextBlock TextWrapping="Wrap" FontSize="12" Opacity="0.7"
+                       Text="Import .conf, inspect AST, edit nodes and export while preserving unknown directives and comments." />
+            <TextBlock Text="{Binding ImportFileName}" Opacity="0.6" FontSize="12" />
+          </StackPanel>
+          <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8">
+            <Button Click="ImportConfig_Click" Content="Open .conf" />
+            <Button Command="{Binding ParseImportedCommand}" Content="Parse" />
+            <Button Command="{Binding AppendGeneratedHostCommand}"
+                    IsEnabled="{Binding CanAppendGeneratedHost}" Content="+ Last preset" />
+          </StackPanel>
+          <TextBlock Grid.Row="2" Text="{Binding ImportSummary}" FontSize="12" Opacity="0.7" />
+          <ListBox Grid.Row="3" ItemsSource="{Binding ImportedNodes}" SelectedItem="{Binding SelectedImportNode}">
+            <ListBox.ItemTemplate>
+              <DataTemplate>
+                <TextBlock Margin="5,4" FontFamily="Consolas" Text="{Binding Display}" />
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+          <StackPanel Grid.Row="4" Spacing="8">
+            <TextBlock FontWeight="SemiBold" Text="Selected node (editable)" />
+            <TextBox Text="{Binding NodeReplacementText, UpdateSourceTrigger=PropertyChanged}"
+                     AcceptsReturn="True" TextWrapping="Wrap" MinHeight="75" MaxHeight="130" />
+            <Button Command="{Binding ApplyNodeEditCommand}" Content="Apply node replacement" />
+          </StackPanel>
+          <ScrollViewer Grid.Row="5" MaxHeight="95">
+            <StackPanel Spacing="4">
+              <TextBlock Foreground="OrangeRed" Text="{Binding ImportDiagnostics}" TextWrapping="Wrap" />
+              <TextBlock FontSize="12" Foreground="OrangeRed" Text="{Binding ExportStatus}" TextWrapping="Wrap" />
+            </StackPanel>
+          </ScrollViewer>
+        </Grid>
+
+        <Grid Grid.Column="1" RowDefinitions="Auto,*">
+          <Border Padding="20,14" BorderBrush="#30000000" BorderThickness="1,0,0,1">
+            <Grid ColumnDefinitions="*,Auto">
+              <StackPanel>
+                <TextBlock FontSize="17" FontWeight="SemiBold" Text="Configuration source" />
+                <TextBlock Opacity="0.6" FontSize="12" TextWrapping="Wrap"
+                           Text="Edit text directly, then press Parse to refresh the AST. Export preserves the current text." />
+              </StackPanel>
+              <Button Grid.Column="1" VerticalAlignment="Center" IsEnabled="{Binding CanExport}"
+                      Click="SaveConfig_Click" Content="Export .conf" />
+            </Grid>
+          </Border>
+          <TextBox Grid.Row="1" Margin="16" Padding="16"
+                   AcceptsReturn="True" TextWrapping="NoWrap"
+                   FontFamily="Consolas" FontSize="13"
+                   ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                   ScrollViewer.VerticalScrollBarVisibility="Auto"
+                   Text="{Binding ImportText, UpdateSourceTrigger=PropertyChanged}" />
+        </Grid>
       </Grid>
     </Grid>
   </Grid>

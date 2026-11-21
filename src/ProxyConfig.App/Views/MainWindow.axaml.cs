@@ -16,6 +16,35 @@ public partial class MainWindow : Window
 
     private void InitializeComponent() => AvaloniaXamlLoader.Load(this);
 
+    private async void ImportConfig_Click(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel viewModel)
+            return;
+        try
+        {
+            var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = "Import NGINX / Apache configuration",
+                AllowMultiple = false
+            });
+            var file = files.FirstOrDefault();
+            if (file is null)
+                return;
+
+            await using var stream = await file.OpenReadAsync();
+            using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+            viewModel.ImportText = await reader.ReadToEndAsync();
+            viewModel.ImportFileName = file.Name;
+            viewModel.ParseImported();
+            viewModel.ExportStatus = string.Empty;
+        }
+        catch (Exception ex)
+        {
+            if (DataContext is MainWindowViewModel vm)
+                vm.ExportStatus = $"Import failed: {ex.Message}";
+        }
+    }
+
     private async void SaveConfig_Click(object? sender, RoutedEventArgs e)
     {
         if (DataContext is not MainWindowViewModel viewModel || !viewModel.CanExport)
@@ -41,7 +70,7 @@ public partial class MainWindow : Window
             if (stream.CanSeek)
                 stream.SetLength(0);
             await using var writer = new StreamWriter(stream, new UTF8Encoding(false));
-            await writer.WriteAsync(viewModel.Preview);
+            await writer.WriteAsync(viewModel.ExportText);
             await writer.FlushAsync();
             viewModel.ExportStatus = $"Saved {file.Name}";
         }
