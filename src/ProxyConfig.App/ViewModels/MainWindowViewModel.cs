@@ -26,6 +26,9 @@ public sealed class MainWindowViewModel : ObservableObject
     private string _projectApacheServerRoot = "/etc/httpd";
     private string _projectApacheModuleInclude = "conf.modules.d/*.conf";
     private int _projectNginxWorkerConnections = 1024;
+    private string _projectTargetVersion = string.Empty;
+    private bool _auditInstalledModules;
+    private string _projectInstalledModulesText = string.Empty;
     private string _diffPreview = string.Empty;
     private string _nodeSearchText = string.Empty;
     private string _newWorkspacePath = "nginx.conf";
@@ -195,6 +198,8 @@ public sealed class MainWindowViewModel : ObservableObject
     public ObservableCollection<string> ArgumentChoices { get; } = [];
     public ObservableCollection<ConfigContextAnalyzer.Warning> ContextWarnings { get; } = [];
     public ObservableCollection<ConfigSecurityLinter.Finding> SecurityFindings { get; } = [];
+    public ObservableCollection<ConfigProjectAnalyzer.Finding> ProjectFindings { get; } = [];
+    public ObservableCollection<ConfigTargetCompatibility.Finding> CompatibilityFindings { get; } = [];
     public ObservableCollection<WorkspaceFileItem> WorkspaceFiles { get; } = [];
     public ObservableCollection<BlockTargetItem> BlockTargets { get; } = [];
     public ObservableCollection<BlockTargetItem> CrossFileBlockTargets { get; } = [];
@@ -241,6 +246,24 @@ public sealed class MainWindowViewModel : ObservableObject
     {
         get => _projectNginxWorkerConnections;
         set => SetProperty(ref _projectNginxWorkerConnections, value);
+    }
+
+    public string ProjectTargetVersion
+    {
+        get => _projectTargetVersion;
+        set { if (SetProperty(ref _projectTargetVersion, value)) RebuildIncludeGraph(); }
+    }
+
+    public bool AuditInstalledModules
+    {
+        get => _auditInstalledModules;
+        set { if (SetProperty(ref _auditInstalledModules, value)) RebuildIncludeGraph(); }
+    }
+
+    public string ProjectInstalledModulesText
+    {
+        get => _projectInstalledModulesText;
+        set { if (SetProperty(ref _projectInstalledModulesText, value)) RebuildIncludeGraph(); }
     }
 
     public string SuggestedFileName => IsImport && ImportFileName.Length > 0
@@ -1371,19 +1394,38 @@ public sealed class MainWindowViewModel : ObservableObject
     private void RebuildIncludeGraph()
     {
         IncludeEntries.Clear();
+        ProjectFindings.Clear();
+        CompatibilityFindings.Clear();
         if (SelectedRootWorkspaceFile is not { } root || WorkspaceFiles.Count == 0)
         {
             IncludeSummary = "Import multiple files to inspect include relationships.";
             return;
         }
-        var graph = ExportWorkspaceSnapshot().AnalyzeIncludes(SelectedEngine,
-            root.Path, string.IsNullOrWhiteSpace(ApacheServerRoot) ? null : ApacheServerRoot.Trim());
+        var workspace = ExportWorkspaceSnapshot();
+        var apacheRoot = string.IsNullOrWhiteSpace(ApacheServerRoot) ? null : ApacheServerRoot.Trim();
+        var graph = workspace.AnalyzeIncludes(SelectedEngine, root.Path, apacheRoot);
         IncludeSummary = $"{graph.VisitedFiles.Count} visited file(s), " +
             $"{graph.Edges.Count} include edge(s), {graph.Issues.Count} issue(s).";
         foreach (var edge in graph.Edges)
             IncludeEntries.Add($"{edge.From} → {edge.To}" + (edge.Optional ? " (optional)" : ""));
         foreach (var issue in graph.Issues)
             IncludeEntries.Add($"WARNING {issue.File}: {issue.Message}");
+        foreach (var finding in ConfigProjectAnalyzer.Analyze(
+                     workspace, SelectedEngine, root.Path, apacheRoot))
+            ProjectFindings.Add(finding);
+        var installed = AuditInstalledModules
+            ? ProjectInstalledModulesText.Split(
+                ['\r', '\n', ',', ';'], StringSplitOptions.RemoveEmptyEntries |
+                    StringSplitOptions.TrimEntries)
+            : null;
+        foreach (var finding in ConfigTargetCompatibility.Analyze(
+                     workspace, SelectedEngine, root.Path,
+                     new ConfigTargetCompatibility.Profile
+                     {
+                         Version = ProjectTargetVersion,
+                         InstalledModules = installed
+                     }, apacheRoot))
+            CompatibilityFindings.Add(finding);
     }
 
     private void RefreshCrossFileTargets()

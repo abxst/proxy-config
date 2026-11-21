@@ -21,6 +21,7 @@
 - Identify Virtual Hosts and append another generated NGINX server (inside an existing `http` block when present) or Apache `VirtualHost`.
 - The NGINX Stream preset produces a root-scope `stream` block; generated-host appending rejects it because `stream` cannot be nested under `http`.
 - Evaluate a finite in-memory set of files for `include` / `Include` / `IncludeOptional` edges, wildcards, missing required paths, circular references and recursion depth.
+- Show cross-file diagnostics for exact HTTP host binding collisions, include problems and structural parse errors. Optional target profiles advise on a bounded set of documented module/version constraints.
 - Import UTF-8, UTF-16 or UTF-32 files (BOM-aware) through Avalonia's open dialog; export individual files and ZIP workspaces using their preserved encodings.
 - Build a multi-file full-project scaffold from valid generated snippets, including root config, NGINX HTTP/Stream includes, MIME/FastCGI support and Apache VirtualHost Listen declarations.
 
