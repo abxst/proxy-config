@@ -12,7 +12,7 @@ namespace ProxyConfig.App.ViewModels;
 
 public sealed class MainWindowViewModel : ObservableObject
 {
-    private enum EditorPage { StaticSite, ReverseProxy, Redirect, Explorer, Import }
+    private enum EditorPage { StaticSite, ReverseProxy, Redirect, LoadBalancer, Explorer, Import }
     private sealed record CrossFileTransfer(
         WorkspaceFileItem Source, WorkspaceFileItem Destination,
         string BeforeSource, string BeforeDestination,
@@ -44,6 +44,9 @@ public sealed class MainWindowViewModel : ObservableObject
     private bool _compression;
     private EditorPage _page;
     private string _upstreamUrl = "http://127.0.0.1:3000";
+    private string _backendOriginsText = "http://127.0.0.1:3000\nhttp://127.0.0.1:3001";
+    private string _clusterName = "backend_pool";
+    private LoadBalancingMethod _balancingMethod;
     private string _proxyUrlPath = "/";
     private bool _stripPrefix = true;
     private bool _preserveHost = true;
@@ -93,6 +96,7 @@ public sealed class MainWindowViewModel : ObservableObject
         ShowStaticSiteCommand = new RelayCommand(() => SelectPage(EditorPage.StaticSite));
         ShowReverseProxyCommand = new RelayCommand(() => SelectPage(EditorPage.ReverseProxy));
         ShowRedirectCommand = new RelayCommand(() => SelectPage(EditorPage.Redirect));
+        ShowLoadBalancerCommand = new RelayCommand(() => SelectPage(EditorPage.LoadBalancer));
         ShowExplorerCommand = new RelayCommand(() => SelectPage(EditorPage.Explorer));
         ShowImportCommand = new RelayCommand(() =>
         {
@@ -125,6 +129,7 @@ public sealed class MainWindowViewModel : ObservableObject
     public IRelayCommand ShowStaticSiteCommand { get; }
     public IRelayCommand ShowReverseProxyCommand { get; }
     public IRelayCommand ShowRedirectCommand { get; }
+    public IRelayCommand ShowLoadBalancerCommand { get; }
     public IRelayCommand ShowExplorerCommand { get; }
     public IRelayCommand ShowImportCommand { get; }
     public IRelayCommand ParseImportedCommand { get; }
@@ -150,6 +155,7 @@ public sealed class MainWindowViewModel : ObservableObject
     public ObservableCollection<DocumentedDirective> DirectiveSuggestions { get; } = [];
     public ObservableCollection<string> ArgumentChoices { get; } = [];
     public ObservableCollection<ConfigContextAnalyzer.Warning> ContextWarnings { get; } = [];
+    public ObservableCollection<ConfigSecurityLinter.Finding> SecurityFindings { get; } = [];
     public ObservableCollection<WorkspaceFileItem> WorkspaceFiles { get; } = [];
     public ObservableCollection<BlockTargetItem> BlockTargets { get; } = [];
     public ObservableCollection<BlockTargetItem> CrossFileBlockTargets { get; } = [];
@@ -157,11 +163,14 @@ public sealed class MainWindowViewModel : ObservableObject
     public IReadOnlyList<ServerEngine> ServerEngines { get; } = Enum.GetValues<ServerEngine>();
     public IReadOnlyList<TargetPlatform> TargetPlatforms { get; } = Enum.GetValues<TargetPlatform>();
     public IReadOnlyList<int> RedirectStatuses { get; } = [301, 302, 307, 308];
+    public IReadOnlyList<LoadBalancingMethod> BalancingMethods { get; } =
+        Enum.GetValues<LoadBalancingMethod>();
 
     public bool IsExplorer => _page == EditorPage.Explorer;
     public bool IsStaticSite => _page == EditorPage.StaticSite;
     public bool IsReverseProxy => _page == EditorPage.ReverseProxy;
     public bool IsRedirect => _page == EditorPage.Redirect;
+    public bool IsLoadBalancer => _page == EditorPage.LoadBalancer;
     public bool IsHostPreset => IsReverseProxy || IsRedirect;
     public bool IsImport => _page == EditorPage.Import;
     public bool IsGenerator => !IsExplorer && !IsImport;
@@ -171,6 +180,7 @@ public sealed class MainWindowViewModel : ObservableObject
         : $"{(SelectedEngine == ServerEngine.Nginx ? "nginx" : "apache")}-" +
           (_page == EditorPage.ReverseProxy ? "proxy" :
            _page == EditorPage.Redirect ? "redirect" :
+           _page == EditorPage.LoadBalancer ? "balancer" :
            _page == EditorPage.Import ? "imported" : "site") + ".conf";
 
     public string ImportText
@@ -251,6 +261,7 @@ public sealed class MainWindowViewModel : ObservableObject
                 ImportFileName = string.Empty;
                 ImportedNodes.Clear();
                 ContextWarnings.Clear();
+                SecurityFindings.Clear();
                 BlockTargets.Clear();
                 SelectedMoveTarget = null;
                 RefreshCrossFileTargets();
@@ -457,6 +468,24 @@ public sealed class MainWindowViewModel : ObservableObject
     {
         get => _upstreamUrl;
         set { if (SetProperty(ref _upstreamUrl, value)) Regenerate(); }
+    }
+
+    public string BackendOriginsText
+    {
+        get => _backendOriginsText;
+        set { if (SetProperty(ref _backendOriginsText, value)) Regenerate(); }
+    }
+
+    public string ClusterName
+    {
+        get => _clusterName;
+        set { if (SetProperty(ref _clusterName, value)) Regenerate(); }
+    }
+
+    public LoadBalancingMethod BalancingMethod
+    {
+        get => _balancingMethod;
+        set { if (SetProperty(ref _balancingMethod, value)) Regenerate(); }
     }
 
     public string ProxyUrlPath
@@ -765,6 +794,7 @@ public sealed class MainWindowViewModel : ObservableObject
         OnPropertyChanged(nameof(IsStaticSite));
         OnPropertyChanged(nameof(IsReverseProxy));
         OnPropertyChanged(nameof(IsRedirect));
+        OnPropertyChanged(nameof(IsLoadBalancer));
         OnPropertyChanged(nameof(IsHostPreset));
         OnPropertyChanged(nameof(IsGenerator));
         OnPropertyChanged(nameof(IsImport));
@@ -780,6 +810,11 @@ public sealed class MainWindowViewModel : ObservableObject
             return;
 
         ExportStatus = string.Empty;
+        if (IsLoadBalancer)
+        {
+            RegenerateLoadBalancer();
+            return;
+        }
         if (IsHostPreset)
         {
             RegenerateHost();
@@ -860,6 +895,32 @@ public sealed class MainWindowViewModel : ObservableObject
         if (errors.Count == 0)
             RememberGeneratedPreview();
 
+        OnPropertyChanged(nameof(CanExport));
+        OnPropertyChanged(nameof(CanAppendGeneratedHost));
+    }
+
+    private void RegenerateLoadBalancer()
+    {
+        var options = new LoadBalancerOptions
+        {
+            Engine = SelectedEngine,
+            Domain = (Domain ?? string.Empty).Trim(),
+            ListenPort = ListenPort,
+            ClusterName = (ClusterName ?? string.Empty).Trim(),
+            UrlPath = (ProxyUrlPath ?? string.Empty).Trim(),
+            BackendOrigins = LoadBalancerValidator.ParseBackends(BackendOriginsText),
+            Method = BalancingMethod,
+            StripPrefix = StripPrefix,
+            PreserveHost = PreserveHost
+        };
+        var errors = LoadBalancerValidator.Validate(options);
+        ValidationMessage = string.Join(Environment.NewLine, errors);
+        Preview = errors.Count > 0 ? "# Fix validation errors before generation."
+            : SelectedEngine == ServerEngine.Nginx
+                ? NginxLoadBalancerGenerator.Generate(options)
+                : ApacheLoadBalancerGenerator.Generate(options);
+        if (errors.Count == 0)
+            RememberGeneratedPreview();
         OnPropertyChanged(nameof(CanExport));
         OnPropertyChanged(nameof(CanAppendGeneratedHost));
     }
@@ -1024,8 +1085,11 @@ public sealed class MainWindowViewModel : ObservableObject
         ContextWarnings.Clear();
         foreach (var warning in ConfigContextAnalyzer.Analyze(_importedDocument, _catalog, ImportFileName))
             ContextWarnings.Add(warning);
-        ContextWarningSummary = $"{ContextWarnings.Count} advisory context warning(s). " +
-            "Unknown directives are preserved; warnings do not block export.";
+        SecurityFindings.Clear();
+        foreach (var finding in ConfigSecurityLinter.Analyze(_importedDocument))
+            SecurityFindings.Add(finding);
+        ContextWarningSummary = $"{ContextWarnings.Count} context warning(s), " +
+            $"{SecurityFindings.Count} security review hint(s). All are advisory.";
         UpdateImportSummary();
         ImportDiagnostics = string.Join(Environment.NewLine,
             _importedDocument.Diagnostics.Take(8).Select(d => $"At {d.Offset}: {d.Message}"));
@@ -1070,7 +1134,8 @@ public sealed class MainWindowViewModel : ObservableObject
         ImportSummary = $"{_importedDocument.VirtualHosts.Count} Virtual Hosts · " +
             $"{ImportedNodes.Count}/{total} nodes shown · " +
             $"{_importedDocument.Diagnostics.Count} parser diagnostics · " +
-            $"{ContextWarnings.Count} context warnings";
+            $"{ContextWarnings.Count} context warnings · " +
+            $"{SecurityFindings.Count} security hints";
     }
 
     private void NotifyHistory()

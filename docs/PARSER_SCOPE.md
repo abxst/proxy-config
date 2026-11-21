@@ -14,6 +14,7 @@
 - Show a bounded line-by-line diff from imported text, search nodes by name/kind, and infer simple enum/number/size argument forms from the catalog with raw fallback.
 - Relocate directives/blocks across parents within a document and insert built-in static route fragments into a selected existing host.
 - Move syntax subtrees between explicitly imported files with an atomic two-document calculation and guarded one-level undo; retain Unicode file BOM/encoding on export.
+- Display narrow, non-blocking security review hints for explicitly enabled directory listing and version exposure settings; no automatic rewrites.
 - Identify Virtual Hosts and append another generated NGINX server (inside an existing `http` block when present) or Apache `VirtualHost`.
 - Evaluate a finite in-memory set of files for `include` / `Include` / `IncludeOptional` edges, wildcards, missing required paths, circular references and recursion depth.
 - Import UTF-8 configuration through Avalonia's open dialog; export the current UTF-8 text through its save dialog.
