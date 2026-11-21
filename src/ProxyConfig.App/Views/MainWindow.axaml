@@ -1,0 +1,112 @@
+<Window
+    x:Class="ProxyConfig.App.Views.MainWindow"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="Proxy Config"
+    Width="1180"
+    Height="760"
+    MinWidth="960"
+    MinHeight="640"
+    WindowStartupLocation="CenterScreen">
+
+  <Grid RowDefinitions="Auto,*">
+    <Border Grid.Row="0" Padding="20,14" BorderBrush="#30000000" BorderThickness="0,0,0,1">
+      <Grid ColumnDefinitions="*,Auto">
+        <StackPanel>
+          <TextBlock FontSize="22" FontWeight="SemiBold" Text="Proxy Config" />
+          <TextBlock Opacity="0.65" Text="NGINX &amp; Apache configuration studio" />
+        </StackPanel>
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+          <TextBlock VerticalAlignment="Center" Text="Server" />
+          <ComboBox Width="130"
+                    ItemsSource="{Binding ServerEngines}"
+                    SelectedItem="{Binding SelectedEngine}" />
+          <TextBlock VerticalAlignment="Center" Text="Target" />
+          <ComboBox Width="140"
+                    ItemsSource="{Binding TargetPlatforms}"
+                    SelectedItem="{Binding SelectedTargetPlatform}" />
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <Grid Grid.Row="1" ColumnDefinitions="220,420,*">
+      <Border Grid.Column="0" Padding="14" BorderBrush="#30000000" BorderThickness="0,0,1,0">
+        <StackPanel Spacing="6">
+          <TextBlock Margin="8,4,8,12" FontSize="13" FontWeight="SemiBold" Opacity="0.65" Text="CONFIGURATION" />
+          <Button HorizontalContentAlignment="Left" Content="Static Website" />
+          <Button HorizontalContentAlignment="Left" IsEnabled="False" Content="Virtual Hosts" />
+          <Button HorizontalContentAlignment="Left" IsEnabled="False" Content="Reverse Proxy" />
+          <Button HorizontalContentAlignment="Left" IsEnabled="False" Content="Load Balancer" />
+          <Button HorizontalContentAlignment="Left" IsEnabled="False" Content="TLS / SSL" />
+          <Button HorizontalContentAlignment="Left" IsEnabled="False" Content="Directive Explorer" />
+          <Separator Margin="0,10" />
+          <TextBlock Margin="8,0" TextWrapping="Wrap" Opacity="0.58"
+                     Text="Foundation build: Static Website is implemented first. The directive registry is designed for full public NGINX/Apache coverage." />
+        </StackPanel>
+      </Border>
+
+      <ScrollViewer Grid.Column="1">
+        <StackPanel Margin="24" Spacing="14">
+          <StackPanel Margin="0,0,0,8">
+            <TextBlock FontSize="24" FontWeight="SemiBold" Text="Serve Static Files" />
+            <TextBlock Margin="0,4,0,0" Opacity="0.65"
+                       Text="Generate native server configuration from a target filesystem path." />
+          </StackPanel>
+
+          <TextBlock FontWeight="SemiBold" Text="Domain" />
+          <TextBox Text="{Binding Domain, UpdateSourceTrigger=PropertyChanged}" Watermark="example.com" />
+
+          <TextBlock FontWeight="SemiBold" Text="Listen port" />
+          <NumericUpDown Minimum="1" Maximum="65535" Value="{Binding ListenPort}" />
+
+          <TextBlock FontWeight="SemiBold" Text="Static directory" />
+          <TextBox Text="{Binding StaticDirectory, UpdateSourceTrigger=PropertyChanged}"
+                   Watermark="/srv/www/example" />
+          <TextBlock Margin="0,-8,0,0" FontSize="12" Opacity="0.55"
+                     Text="This is the path on the target server; it does not need to exist on this computer." />
+
+          <TextBlock FontWeight="SemiBold" Text="URL path" />
+          <TextBox Text="{Binding UrlPath, UpdateSourceTrigger=PropertyChanged}" Watermark="/" />
+
+          <TextBlock FontWeight="SemiBold" Text="Index files" />
+          <TextBox Text="{Binding IndexFiles, UpdateSourceTrigger=PropertyChanged}"
+                   Watermark="index.html index.htm" />
+
+          <Separator Margin="0,6" />
+
+          <CheckBox IsChecked="{Binding SpaFallback}" Content="SPA fallback to first index file" />
+          <CheckBox IsChecked="{Binding DirectoryListing}" Content="Enable directory listing" />
+          <CheckBox IsChecked="{Binding CacheStaticAssets}" Content="Cache static assets for 30 days" />
+          <CheckBox IsChecked="{Binding Compression}" Content="Enable response compression" />
+
+          <Border IsVisible="{Binding ValidationMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                  Padding="12" CornerRadius="8" Background="#22FF4500">
+            <TextBlock Foreground="OrangeRed" TextWrapping="Wrap" Text="{Binding ValidationMessage}" />
+          </Border>
+        </StackPanel>
+      </ScrollViewer>
+
+      <Grid Grid.Column="2" RowDefinitions="Auto,*" Margin="0">
+        <Border Padding="20,16" BorderBrush="#30000000" BorderThickness="1,0,0,1">
+          <StackPanel>
+            <TextBlock FontSize="17" FontWeight="SemiBold" Text="Live configuration preview" />
+            <TextBlock Margin="0,3,0,0" Opacity="0.6"
+                       Text="Preview updates immediately when configuration changes." />
+          </StackPanel>
+        </Border>
+
+        <TextBox Grid.Row="1"
+                 Margin="16"
+                 Padding="16"
+                 AcceptsReturn="True"
+                 IsReadOnly="True"
+                 TextWrapping="NoWrap"
+                 FontFamily="Consolas"
+                 FontSize="14"
+                 HorizontalScrollBarVisibility="Auto"
+                 VerticalScrollBarVisibility="Auto"
+                 Text="{Binding Preview}" />
+      </Grid>
+    </Grid>
+  </Grid>
+</Window>

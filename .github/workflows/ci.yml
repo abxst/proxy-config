@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-test-publish:
+    name: Windows build, test and publish
+    runs-on: windows-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        run: dotnet restore ProxyConfig.sln
+
+      - name: Build
+        run: dotnet build ProxyConfig.sln --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test ProxyConfig.sln --configuration Release --no-build --logger "trx;LogFileName=tests.trx"
+
+      - name: Publish Windows x64
+        run: dotnet publish src/ProxyConfig.App/ProxyConfig.App.csproj --configuration Release --runtime win-x64 --self-contained false --output artifacts/win-x64
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: proxy-config-win-x64
+          path: artifacts/win-x64
+          if-no-files-found: error
