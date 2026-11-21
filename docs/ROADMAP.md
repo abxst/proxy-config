@@ -44,6 +44,10 @@
 - Registry-driven property editor
 - Search and command palette
 - Undo/redo
+- **Multi-block (required):** multiple server/VirtualHost blocks in one file or project
+- **Nested multi-block:** multiple NGINX `location`/`upstream`/`map` and Apache `<Directory>`/`<Location>`/`<Proxy>` blocks with context-aware containment
+- Add, remove, duplicate, reorder and move blocks without dropping unknown directives or comments
+- Per-block presets and independent settings for multiple hosts/routes/upstreams
 
 ## M5 — Presets
 
