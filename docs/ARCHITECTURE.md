@@ -65,6 +65,11 @@ dialog accepts multiple selected files; folder import reads configuration-like
 extensions under the user-chosen root, skips symbolic links and applies count
 and size limits. Each editor tab retains its own file history when switching.
 
+For NGINX, relative `include` targets resolve from the main config's directory
+(configuration prefix), even when the directive occurs in a nested include.
+Apache uses the specified `ServerRoot` when supplied, otherwise the source
+file directory for offline advisory graph analysis.
+
 `DirectiveArgumentForm` derives safe single-field choices, non-negative integers
 or simple NGINX sizes only from unambiguous published directive syntax.
 Anything more complex stays an editable raw string; typed validation can be

@@ -36,6 +36,7 @@
 - Include graph does not read arbitrary files from disk or remote systems. It resolves only explicitly supplied workspace files.
 - The GUI imports multiple files into an in-memory workspace but edits one active document at a time. Folder import is explicitly user-selected and subject to limits; it does not follow included paths outside the workspace.
 - Apache relative include resolution defaults to the source-file folder unless the caller supplies an Apache `ServerRoot` explicitly.
+- NGINX relative includes resolve from the main config's directory (configuration prefix), not the source include file's folder.
 - A top-level NGINX HTTP `server` snippet is suitable for a configuration included from an `http` block, not as a standalone full `nginx.conf`; a Stream preset emits a separate main-context `stream` block.
 - Typed argument hints intentionally cover only trivial signatures. Complex parameters, condition-dependent meanings and module/version compatibility still require server-side verification.
 - No server installation, restart, deployment, or server-side write operations are performed.

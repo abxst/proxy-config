@@ -39,6 +39,9 @@ public sealed class ConfigIncludeGraph
         var sources = suppliedFiles.ToDictionary(
             item => NormalizePath(item.Key), item => item.Value, StringComparer.Ordinal);
         var root = NormalizePath(rootFile);
+        // NGINX resolves relative include paths against its configuration
+        // prefix (the directory of the main config), not the including file.
+        var nginxConfigPrefix = ParentDirectory(root);
         var issues = new List<ConfigIncludeIssue>();
         var edges = new List<ConfigIncludeEdge>();
         var visited = new HashSet<string>(StringComparer.Ordinal);
@@ -80,9 +83,10 @@ public sealed class ConfigIncludeGraph
                     issues.Add(new ConfigIncludeIssue(path, "Empty include path."));
                     continue;
                 }
-                var basePath = engine == ServerEngine.Apache && apacheServerRoot is not null
-                    ? NormalizePath(apacheServerRoot)
-                    : ParentDirectory(path);
+                var basePath = engine == ServerEngine.Nginx
+                    ? nginxConfigPrefix
+                    : apacheServerRoot is not null
+                        ? NormalizePath(apacheServerRoot) : ParentDirectory(path);
                 var pattern = NormalizePath(target.StartsWith('/') || HasDrivePrefix(target)
                     ? target : basePath + "/" + target);
                 var matches = sources.Keys

@@ -128,7 +128,7 @@ public sealed class ConfigSyntaxTests
         var files = new Dictionary<string, string>
         {
             ["/etc/nginx/nginx.conf"] = "http { include sites/*.conf; }",
-            ["/etc/nginx/sites/app.conf"] = "server { listen 80; }\ninclude ../nginx.conf;",
+            ["/etc/nginx/sites/app.conf"] = "server { listen 80; }\ninclude nginx.conf;",
             ["/etc/nginx/sites/static.conf"] = "server { listen 8080; }"
         };
         var graph = ConfigIncludeGraph.Build(ServerEngine.Nginx, "/etc/nginx/nginx.conf", files);
