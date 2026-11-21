@@ -163,6 +163,27 @@ target NGINX installation must have HTTP/2 and gRPC modules, and the existing
 listener must be configured appropriately for gRPC clients. Apache's
 `mod_proxy_http2` behavior is distinct and is not presented as equivalent.
 
+## HTTP logging and IP access policy forms
+
+The shared `HostLoggingOptions` / `HostLoggingValidator` and `IpAccessOptions` /
+`IpAccessValidator` provide bounded, opt-in logging and IP-only access rules.
+NGINX emits `access_log` (built-in combined format), `error_log`, and ordered
+`allow`/`deny` directives; Apache emits `CustomLog` with an inline combined
+format, `ErrorLog`/`LogLevel`, plus `Require ip` authorization inside a
+`Location`. Apache denylisting uses `<RequireAll>` with an affirmative
+`Require all granted` and negative `Require not ip` entries. Apache allowlisting
+uses `<RequireAny>`, so each address may authorize.
+
+Generated host presets apply these fragments only when requested; unknown
+module availability is not guessed. In the editor, log insertion requires
+an existing HTTP Virtual Host, while IP rules accept a Virtual Host or an
+existing matching location. They reject potentially conflicting direct rules
+rather than silently overwriting other security settings. Network inputs
+are strict dotted-decimal IPv4 or IPv6 with optional CIDR; alternate numeric
+IPv4 spellings are rejected. Paths refer to the target server. These policies
+do not manage log rotation, trusted upstream client IP reconstruction, or
+deployed authorization/module state.
+
 ## Export
 
 The Static Website screen generates native config text with a validation gate. The UI saves UTF-8 text using Avalonia's platform SaveFilePicker; it does not write to a running server.

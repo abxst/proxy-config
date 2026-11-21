@@ -197,6 +197,41 @@
               <NumericUpDown Minimum="1" Maximum="3600" Value="{Binding StreamTimeoutSeconds}" />
             </StackPanel>
 
+            <Expander Header="Logging and IP access policies"
+                      IsVisible="{Binding IsHttpGenerator}">
+              <StackPanel Margin="8" Spacing="10">
+                <CheckBox Content="Enable per-host access/error log configuration"
+                          IsChecked="{Binding EnableHostLogging}" />
+                <StackPanel Spacing="7" IsVisible="{Binding EnableHostLogging}">
+                  <CheckBox Content="Write access log" IsChecked="{Binding WriteAccessLog}" />
+                  <TextBlock FontSize="12" Text="Access log file on target server" />
+                  <TextBox Text="{Binding AccessLogPath, UpdateSourceTrigger=PropertyChanged}"
+                           PlaceholderText="logs/access.log" />
+                  <TextBlock FontSize="12" Text="Error log file on target server" />
+                  <TextBox Text="{Binding ErrorLogPath, UpdateSourceTrigger=PropertyChanged}"
+                           PlaceholderText="logs/error.log" />
+                  <TextBlock FontSize="12" Text="Error log severity" />
+                  <ComboBox ItemsSource="{Binding ErrorLogLevels}"
+                            SelectedItem="{Binding SelectedErrorLogLevel}" />
+                </StackPanel>
+                <Separator />
+                <CheckBox Content="Enable IP allowlist / denylist"
+                          IsChecked="{Binding EnableIpPolicy}" />
+                <StackPanel Spacing="7" IsVisible="{Binding EnableIpPolicy}">
+                  <ComboBox ItemsSource="{Binding IpAccessModes}"
+                            SelectedItem="{Binding SelectedIpAccessMode}" />
+                  <TextBlock FontSize="12" Text="IP addresses or CIDR networks (one per line)" />
+                  <TextBox Text="{Binding IpAccessEntriesText, UpdateSourceTrigger=PropertyChanged}"
+                           AcceptsReturn="True" MinHeight="85" TextWrapping="NoWrap" />
+                  <TextBlock FontSize="12" Text="Apache URL path to protect" />
+                  <TextBox Text="{Binding IpAccessUrlPath, UpdateSourceTrigger=PropertyChanged}"
+                           PlaceholderText="/" />
+                  <TextBlock FontSize="11" TextWrapping="Wrap" Opacity="0.65"
+                             Text="NGINX rules apply at the server level; Apache uses a Location URL scope. Confirm effects of inherited authorization." />
+                </StackPanel>
+              </StackPanel>
+            </Expander>
+
             <Border IsVisible="{Binding ValidationMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
                     Padding="12" CornerRadius="8" Background="#22FF4500">
               <TextBlock Foreground="OrangeRed" TextWrapping="Wrap" Text="{Binding ValidationMessage}" />
@@ -548,6 +583,35 @@
                   <TextBlock FontSize="12" Text="Send timeout, seconds" />
                   <NumericUpDown Minimum="1" Maximum="3600" Value="{Binding GrpcSendTimeoutSeconds}" />
                   <Button Command="{Binding AddGrpcRouteCommand}" Content="Insert gRPC route into selected host" />
+                </StackPanel>
+              </ScrollViewer>
+            </TabItem>
+            <TabItem Header="Log / ACL">
+              <ScrollViewer MaxHeight="315">
+                <StackPanel Margin="6,10,6,6" Spacing="8">
+                  <TextBlock FontWeight="SemiBold" Text="Host logging" />
+                  <TextBlock FontSize="12" TextWrapping="Wrap" Opacity="0.7"
+                             Text="Select an HTTP server / VirtualHost. Existing log directives are never silently overwritten." />
+                  <CheckBox Content="Write access log" IsChecked="{Binding WriteAccessLog}" />
+                  <TextBox PlaceholderText="Target server access log path"
+                           Text="{Binding AccessLogPath, UpdateSourceTrigger=PropertyChanged}" />
+                  <TextBox PlaceholderText="Target server error log path"
+                           Text="{Binding ErrorLogPath, UpdateSourceTrigger=PropertyChanged}" />
+                  <ComboBox ItemsSource="{Binding ErrorLogLevels}"
+                            SelectedItem="{Binding SelectedErrorLogLevel}" />
+                  <Button Command="{Binding AddHostLoggingCommand}" Content="Insert logging into selected host" />
+                  <Separator />
+                  <TextBlock FontWeight="SemiBold" Text="IP allowlist / denylist" />
+                  <TextBlock FontSize="12" TextWrapping="Wrap" Opacity="0.7"
+                             Text="Select an HTTP host or its existing location. NGINX inserts ordered IP rules into that scope; Apache uses Require ip inside Location." />
+                  <ComboBox ItemsSource="{Binding IpAccessModes}"
+                            SelectedItem="{Binding SelectedIpAccessMode}" />
+                  <TextBox Text="{Binding IpAccessEntriesText, UpdateSourceTrigger=PropertyChanged}"
+                           AcceptsReturn="True" MinHeight="85" TextWrapping="NoWrap"
+                           PlaceholderText="10.0.0.0/8" />
+                  <TextBox Text="{Binding IpAccessUrlPath, UpdateSourceTrigger=PropertyChanged}"
+                           PlaceholderText="Apache Location URL path (if inserting into VirtualHost)" />
+                  <Button Command="{Binding AddIpPolicyCommand}" Content="Insert IP access policy" />
                 </StackPanel>
               </ScrollViewer>
             </TabItem>

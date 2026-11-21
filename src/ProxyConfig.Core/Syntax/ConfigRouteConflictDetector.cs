@@ -35,7 +35,8 @@ public static class ConfigRouteConflictDetector
         {
             var routeBlock = doc.Engine == ServerEngine.Nginx
                 ? node.Name == "location"
-                : node.Name.Equals("FilesMatch", StringComparison.OrdinalIgnoreCase);
+                : node.Name.Equals("FilesMatch", StringComparison.OrdinalIgnoreCase) ||
+                  node.Name.Equals("Location", StringComparison.OrdinalIgnoreCase);
             if (!routeBlock || node.OpenEnd < node.Start || node.OpenEnd > doc.Text.Length)
                 return null;
             var header = doc.Text[node.Start..node.OpenEnd].Trim();

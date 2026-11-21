@@ -41,6 +41,7 @@
 - [ ] Exact installed module, edition/platform and version compatibility checks
 - [x] Narrow non-blocking security review hints for directory listing and server token exposure (v0.9)
 - [x] Non-blocking legacy TLS protocol hints (v0.13)
+- [x] Bounded IPv4/IPv6/CIDR validation for opt-in allow/deny policies, target-server log path validation (v0.15)
 - [ ] Complete reference/dependency diagnostics, broader security lint with policy profiles
 
 ## M4 — Visual configuration editor (partially shipped in v0.4)
@@ -60,6 +61,7 @@
 - [x] Add static filesystem-serving route into a selected host with existing generator options (v0.7)
 - [x] Per-host HTTP reverse-proxy route insertion (v0.11)
 - [x] Guard exact duplicate route selectors before preset insertion (v0.13)
+- [x] Per-host logging and IP policy forms with safe insertion into existing HTTP contexts (v0.15)
 - [ ] Per-block redirect/upstream editing forms and conflict-aware routing
 
 ## M5 — Presets
@@ -77,6 +79,8 @@ Static Website is the first implemented preset. Continue with:
 - [x] Explicit TLS 1.2+1.3 / TLS 1.3-only protocol profiles and certificate paths (v0.12)
 - [ ] Advanced TLS cipher/ALPN/OCSP/session/stapling policy and certificate inventory
 - [x] NGINX TCP/UDP stream forwarding preset (v0.10)
+- [x] NGINX/Apache HTTP access/error logging and IP allowlist/denylist (v0.15)
+- [ ] Structured logging formats, rotation targets, proxy-aware real-client IP trust lists and richer authorization expressions
 - [ ] Mail proxy preset where supported
 
 ## M6 — Raw editor and round trip (partially shipped in v0.6)
