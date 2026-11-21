@@ -1,7 +1,6 @@
 using System.IO.Compression;
 using ProxyConfig.Core.Models;
 using ProxyConfig.Core.Syntax;
-using ProxyConfig.Nginx;
 using Xunit;
 
 namespace ProxyConfig.Tests;
@@ -99,8 +98,8 @@ public sealed class ConfigProjectScaffolderTests
         ]);
 
         Assert.Contains("ServerRoot \"/etc/httpd\"", project.Files["httpd.conf"]);
-        Assert.Contains("Listen 80\n", project.Files["httpd.conf"]);
-        Assert.Contains("Listen 443\n", project.Files["httpd.conf"]);
+        Assert.Contains("Listen 80" + Environment.NewLine, project.Files["httpd.conf"]);
+        Assert.Contains("Listen 443" + Environment.NewLine, project.Files["httpd.conf"]);
         Assert.Equal(1, project.Files["httpd.conf"].Split("Listen 80").Length - 1);
         Assert.Equal(1, project.Files["httpd.conf"].Split("Listen 443").Length - 1);
         Assert.Contains("IncludeOptional", project.Files["httpd.conf"]);
