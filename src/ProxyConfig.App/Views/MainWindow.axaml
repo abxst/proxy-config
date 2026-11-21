@@ -32,6 +32,7 @@
           <Button HorizontalContentAlignment="Left" Command="{Binding ShowStaticSiteCommand}" Content="Static Website" />
           <Button HorizontalContentAlignment="Left" Command="{Binding ShowReverseProxyCommand}" Content="Reverse Proxy" />
           <Button HorizontalContentAlignment="Left" Command="{Binding ShowRedirectCommand}" Content="HTTP Redirect" />
+          <Button HorizontalContentAlignment="Left" Command="{Binding ShowLoadBalancerCommand}" Content="HTTP Load Balancer" />
           <Button HorizontalContentAlignment="Left" Command="{Binding ShowImportCommand}" Content="Import / Editor" />
           <Button HorizontalContentAlignment="Left" Command="{Binding ShowExplorerCommand}" Content="Directive Explorer" />
           <Separator Margin="0,12" />
@@ -128,6 +129,30 @@
                        AcceptsReturn="True" MinHeight="80" TextWrapping="Wrap"
                        PlaceholderText="X-Content-Type-Options: nosniff" />
               <TextBlock FontSize="12" Opacity="0.6" Text="One Name: value pair per line. Apache requires mod_headers." />
+            </StackPanel>
+
+            <StackPanel Spacing="12" IsVisible="{Binding IsLoadBalancer}">
+              <TextBlock FontSize="24" FontWeight="SemiBold" Text="HTTP Load Balancer" />
+              <TextBlock FontSize="12" Opacity="0.65" TextWrapping="Wrap"
+                         Text="Generate an NGINX upstream + server, or an Apache VirtualHost with a balancer pool. HTTP backends only." />
+              <TextBlock FontWeight="SemiBold" Text="Public domain" />
+              <TextBox Text="{Binding Domain, UpdateSourceTrigger=PropertyChanged}" />
+              <TextBlock FontWeight="SemiBold" Text="Listen port" />
+              <NumericUpDown Minimum="1" Maximum="65535" Value="{Binding ListenPort}" />
+              <TextBlock FontWeight="SemiBold" Text="Upstream/balancer pool name" />
+              <TextBox Text="{Binding ClusterName, UpdateSourceTrigger=PropertyChanged}" />
+              <TextBlock FontWeight="SemiBold" Text="Public URL mount path" />
+              <TextBox Text="{Binding ProxyUrlPath, UpdateSourceTrigger=PropertyChanged}" />
+              <TextBlock FontWeight="SemiBold" Text="Backend HTTP origins (one per line, 2–32)" />
+              <TextBox Text="{Binding BackendOriginsText, UpdateSourceTrigger=PropertyChanged}"
+                       AcceptsReturn="True" MinHeight="130" TextWrapping="NoWrap"
+                       PlaceholderText="http://127.0.0.1:3000" />
+              <TextBlock FontWeight="SemiBold" Text="Balancing algorithm" />
+              <ComboBox ItemsSource="{Binding BalancingMethods}" SelectedItem="{Binding BalancingMethod}" />
+              <TextBlock FontSize="12" TextWrapping="Wrap" Opacity="0.65"
+                         Text="Apache preset supports request-based round-robin only. LeastConnections and ClientIpHash require NGINX." />
+              <CheckBox Content="Strip the external URL prefix" IsChecked="{Binding StripPrefix}" />
+              <CheckBox Content="Preserve incoming Host header" IsChecked="{Binding PreserveHost}" />
             </StackPanel>
 
             <Border IsVisible="{Binding ValidationMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
@@ -332,14 +357,25 @@
                          Text="{Binding NewBlockArguments, UpdateSourceTrigger=PropertyChanged}" />
                 <Button Command="{Binding AddBlockCommand}" Content="Add block to selected scope" />
                 <TextBlock FontSize="11" Opacity="0.6" TextWrapping="Wrap"
-                           Text="Structural syntax is checked. Context warnings appear under Diagnostics. Module/edition/version support is not guaranteed." />
+                           Text="Structural syntax is checked. Context warnings appear under Warnings. Module/edition/version support is not guaranteed." />
               </StackPanel>
             </TabItem>
             <TabItem Header="Warnings">
+              <ScrollViewer MaxHeight="285">
               <StackPanel Margin="6,10,6,6" Spacing="8">
                 <TextBlock FontSize="12" TextWrapping="Wrap" Opacity="0.7"
                            Text="{Binding ContextWarningSummary}" />
-                <ListBox Height="185" ItemsSource="{Binding ContextWarnings}">
+                <TextBlock FontSize="12" FontWeight="SemiBold" Text="Documented context mismatches" />
+                <ListBox Height="100" ItemsSource="{Binding ContextWarnings}">
+                  <ListBox.ItemTemplate>
+                    <DataTemplate>
+                      <TextBlock FontSize="12" Margin="2,4" Foreground="DarkOrange"
+                                 Text="{Binding Display}" TextWrapping="Wrap" />
+                    </DataTemplate>
+                  </ListBox.ItemTemplate>
+                </ListBox>
+                <TextBlock FontSize="12" FontWeight="SemiBold" Text="Security review hints" />
+                <ListBox Height="100" ItemsSource="{Binding SecurityFindings}">
                   <ListBox.ItemTemplate>
                     <DataTemplate>
                       <TextBlock FontSize="12" Margin="2,4" Foreground="DarkOrange"
@@ -348,8 +384,9 @@
                   </ListBox.ItemTemplate>
                 </ListBox>
                 <TextBlock FontSize="11" TextWrapping="Wrap" Opacity="0.6"
-                           Text="Warnings use published directive contexts. Unknown/conditional scopes and module availability cannot be fully validated offline." />
+                           Text="Advisory only: findings are not proof of a vulnerability. Unknown/conditional scopes and installed modules cannot be fully validated offline." />
               </StackPanel>
+              </ScrollViewer>
             </TabItem>
             <TabItem Header="Include">
               <ScrollViewer MaxHeight="290">

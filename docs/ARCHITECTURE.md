@@ -83,6 +83,21 @@ characters. Each workspace file carries its original Unicode encoding,
 which is respected when exporting an individual file or ZIP project.
 Legacy 8-bit encodings require explicit conversion outside the app.
 
+## Load balancer preset and security hints
+
+`LoadBalancerValidator` accepts two to 32 distinct, canonical HTTP origin
+backends and safe pool/path/host inputs. NGINX outputs an `upstream` and a
+`server` in the `http` context; Apache outputs a `VirtualHost` containing a
+`<Proxy "balancer://...">` pool and `ProxyPass` routing. NGINX supports
+round-robin, least connections and client IP hash. The Apache form deliberately
+supports only request-based round-robin, requiring optional proxy and
+balancer modules as documented in the generated comments.
+
+`ConfigSecurityLinter` recognizes a small number of explicit, potentially
+surprising exposure settings (directory listings, server tokens, .htaccess
+override scope). These are review hints, not assertions of exploitable
+vulnerabilities, and never rewrite or block configuration exports.
+
 ## Export
 
 The Static Website screen generates native config text with a validation gate. The UI saves UTF-8 text using Avalonia's platform SaveFilePicker; it does not write to a running server.

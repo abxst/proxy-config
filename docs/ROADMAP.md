@@ -39,7 +39,8 @@
 - [x] Typed-choice and simple numeric/size form assistance for unambiguous catalog signatures (v0.6)
 - [ ] Complete per-directive argument grammars and semantic validation
 - [ ] Exact installed module, edition/platform and version compatibility checks
-- [ ] Reference/dependency diagnostics, security lint warnings without automatic rewriting
+- [x] Narrow non-blocking security review hints for directory listing and server token exposure (v0.9)
+- [ ] Complete reference/dependency diagnostics, broader security lint with policy profiles
 
 ## M4 — Visual configuration editor (partially shipped in v0.4)
 
@@ -65,11 +66,11 @@ Static Website is the first implemented preset. Continue with:
 - [x] Redirect / virtual-host snippets
 - [x] Reverse proxy / WebSocket
 - [x] Basic TLS paths and custom headers for host presets
+- [x] HTTP load balancer (NGINX upstream round-robin/least_conn/ip_hash; Apache request-based balancer) (v0.9)
 - [ ] gRPC proxying and advanced timeout/buffering
-- Load balancer
-- FastCGI/PHP
-- TLS
-- TCP/UDP stream and mail proxy where supported
+- [ ] FastCGI/PHP and per-route FastCGI form
+- [ ] Advanced TLS profile and certificate options
+- [ ] TCP/UDP stream and mail proxy where supported
 
 ## M6 — Raw editor and round trip (partially shipped in v0.6)
 
