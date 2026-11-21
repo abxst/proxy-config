@@ -52,6 +52,16 @@ public sealed class MainWindowViewModel : ObservableObject
     private bool _includeVariables;
     private DocumentedDirective? _selectedDirective;
     private string _searchResultCount = string.Empty;
+    private string _directiveSearchText = string.Empty;
+    private DocumentedDirective? _selectedSuggestion;
+    private string _newDirectiveName = string.Empty;
+    private string _newDirectiveArguments = string.Empty;
+    private string _newBlockName = "location";
+    private string _newBlockArguments = "/";
+    private string _directiveHint = string.Empty;
+    private string _editorScopeContext = "main";
+    private readonly Stack<string> _undo = new();
+    private readonly Stack<string> _redo = new();
     private string _preview = string.Empty;
     private string _validationMessage = string.Empty;
     private string _exportStatus = string.Empty;
@@ -70,7 +80,17 @@ public sealed class MainWindowViewModel : ObservableObject
         ParseImportedCommand = new RelayCommand(ParseImported);
         ApplyNodeEditCommand = new RelayCommand(ApplyNodeEdit);
         AppendGeneratedHostCommand = new RelayCommand(AppendGeneratedHost);
+        AddDirectiveCommand = new RelayCommand(AddDirectiveToSelection);
+        AddBlockCommand = new RelayCommand(AddBlockToSelection);
+        RemoveNodeCommand = new RelayCommand(RemoveSelectedNode);
+        SelectRootScopeCommand = new RelayCommand(() => SelectedImportNode = null);
+        DuplicateNodeCommand = new RelayCommand(DuplicateSelectedNode);
+        MoveNodeUpCommand = new RelayCommand(() => MoveSelectedNode(-1));
+        MoveNodeDownCommand = new RelayCommand(() => MoveSelectedNode(1));
+        UndoEditCommand = new RelayCommand(UndoEdit);
+        RedoEditCommand = new RelayCommand(RedoEdit);
         RefreshExplorer();
+        RefreshDirectiveSuggestions();
         Regenerate();
     }
 
@@ -82,8 +102,18 @@ public sealed class MainWindowViewModel : ObservableObject
     public IRelayCommand ParseImportedCommand { get; }
     public IRelayCommand ApplyNodeEditCommand { get; }
     public IRelayCommand AppendGeneratedHostCommand { get; }
+    public IRelayCommand AddDirectiveCommand { get; }
+    public IRelayCommand AddBlockCommand { get; }
+    public IRelayCommand RemoveNodeCommand { get; }
+    public IRelayCommand SelectRootScopeCommand { get; }
+    public IRelayCommand DuplicateNodeCommand { get; }
+    public IRelayCommand MoveNodeUpCommand { get; }
+    public IRelayCommand MoveNodeDownCommand { get; }
+    public IRelayCommand UndoEditCommand { get; }
+    public IRelayCommand RedoEditCommand { get; }
     public ObservableCollection<ConfigNodeListItem> ImportedNodes { get; } = [];
     public ObservableCollection<DocumentedDirective> SearchResults { get; } = [];
+    public ObservableCollection<DocumentedDirective> DirectiveSuggestions { get; } = [];
     public IReadOnlyList<ServerEngine> ServerEngines { get; } = Enum.GetValues<ServerEngine>();
     public IReadOnlyList<TargetPlatform> TargetPlatforms { get; } = Enum.GetValues<TargetPlatform>();
     public IReadOnlyList<int> RedirectStatuses { get; } = [301, 302, 307, 308];
@@ -145,8 +175,12 @@ public sealed class MainWindowViewModel : ObservableObject
         set
         {
             if (SetProperty(ref _selectedImportNode, value))
+            {
                 NodeReplacementText = value is not null && _importedDocument is not null
                     ? _importedDocument.GetText(value.Node) : string.Empty;
+                EditorScopeContext = _importedDocument is not null
+                    ? ConfigBlockEditor.GetContext(_importedDocument, value?.Node) : "main";
+            }
         }
     }
 
@@ -155,6 +189,64 @@ public sealed class MainWindowViewModel : ObservableObject
         get => _nodeReplacementText;
         set => SetProperty(ref _nodeReplacementText, value);
     }
+
+    public string DirectiveSearchText
+    {
+        get => _directiveSearchText;
+        set { if (SetProperty(ref _directiveSearchText, value)) RefreshDirectiveSuggestions(); }
+    }
+
+    public DocumentedDirective? SelectedSuggestion
+    {
+        get => _selectedSuggestion;
+        set
+        {
+            if (!SetProperty(ref _selectedSuggestion, value) || value is null)
+                return;
+            NewDirectiveName = value.Name;
+            DirectiveHint = $"Syntax: {value.Syntax}\nContext: {value.Context}\nModule: {value.Module}\n" +
+                "Reference only: engine version, available module and context are not verified.";
+        }
+    }
+
+    public string NewDirectiveName
+    {
+        get => _newDirectiveName;
+        set => SetProperty(ref _newDirectiveName, value);
+    }
+
+    public string NewDirectiveArguments
+    {
+        get => _newDirectiveArguments;
+        set => SetProperty(ref _newDirectiveArguments, value);
+    }
+
+    public string NewBlockName
+    {
+        get => _newBlockName;
+        set => SetProperty(ref _newBlockName, value);
+    }
+
+    public string NewBlockArguments
+    {
+        get => _newBlockArguments;
+        set => SetProperty(ref _newBlockArguments, value);
+    }
+
+    public string DirectiveHint
+    {
+        get => _directiveHint;
+        private set => SetProperty(ref _directiveHint, value);
+    }
+
+    public string EditorScopeContext
+    {
+        get => _editorScopeContext;
+        private set => SetProperty(ref _editorScopeContext, value);
+    }
+
+    public bool CanUndo => _undo.Count > 0;
+    public bool CanRedo => _redo.Count > 0;
 
     public bool CanAppendGeneratedHost =>
         _lastGeneratedText.Length > 0 && _lastGeneratedEngine == SelectedEngine &&
@@ -271,8 +363,14 @@ public sealed class MainWindowViewModel : ObservableObject
         {
             if (SetProperty(ref _selectedEngine, value))
             {
+                _undo.Clear();
+                _redo.Clear();
+                NotifyHistory();
+                NewBlockName = value == ServerEngine.Nginx ? "location" : "VirtualHost";
+                NewBlockArguments = value == ServerEngine.Nginx ? "/" : "*:80";
                 Regenerate();
                 RefreshExplorer();
+                RefreshDirectiveSuggestions();
                 if (IsImport) ParseImported();
                 OnPropertyChanged(nameof(SuggestedFileName));
                 OnPropertyChanged(nameof(CanAppendGeneratedHost));
@@ -403,6 +501,18 @@ public sealed class MainWindowViewModel : ObservableObject
         SearchResultCount = $"{results.Count:N0} matching entries · offline snapshot {_catalog.GeneratedAtUtc[..10]}";
     }
 
+    private void RefreshDirectiveSuggestions()
+    {
+        var server = SelectedEngine == ServerEngine.Nginx ? "nginx" : "apache";
+        var results = _catalog.Search(server, DirectiveSearchText).Take(100);
+        DirectiveSuggestions.Clear();
+        foreach (var entry in results)
+            DirectiveSuggestions.Add(entry);
+        SelectedSuggestion = DirectiveSuggestions.FirstOrDefault();
+        if (SelectedSuggestion is null)
+            DirectiveHint = "No matching catalog entry. You can still enter a directive name manually.";
+    }
+
     private void SelectPage(EditorPage page)
     {
         if (_page == page)
@@ -518,8 +628,17 @@ public sealed class MainWindowViewModel : ObservableObject
         OnPropertyChanged(nameof(CanAppendGeneratedHost));
     }
 
-    public void ParseImported()
+    public void ParseImported() => ReparseImported(recordHistory: true);
+
+    private void ReparseImported(bool recordHistory)
     {
+        if (recordHistory && _importedDocument is not null && _importedDocument.Text != ImportText)
+        {
+            _undo.Push(_importedDocument.Text);
+            _redo.Clear();
+            NotifyHistory();
+        }
+
         _importedDocument = ConfigSyntaxDocument.Parse(SelectedEngine, ImportText);
         SelectedImportNode = null;
         ImportedNodes.Clear();
@@ -542,6 +661,90 @@ public sealed class MainWindowViewModel : ObservableObject
             $"{_importedDocument.Diagnostics.Count} diagnostics";
         ImportDiagnostics = string.Join(Environment.NewLine,
             _importedDocument.Diagnostics.Take(8).Select(d => $"At {d.Offset}: {d.Message}"));
+    }
+
+    private void NotifyHistory()
+    {
+        OnPropertyChanged(nameof(CanUndo));
+        OnPropertyChanged(nameof(CanRedo));
+    }
+
+    private bool IsImportSnapshotCurrent()
+    {
+        if (_importedDocument is null)
+            ParseImported();
+        if (_importedDocument!.Text == ImportText)
+            return true;
+        ImportDiagnostics = "Press Parse before editing a selected node.";
+        return false;
+    }
+
+    private void ApplyEditorOperation(Func<ConfigSyntaxDocument, ConfigSyntaxDocument> operation)
+    {
+        if (!IsImportSnapshotCurrent())
+            return;
+        try
+        {
+            ImportText = operation(_importedDocument!).Text;
+            ParseImported();
+        }
+        catch (ArgumentException error)
+        {
+            ImportDiagnostics = error.Message;
+        }
+        catch (InvalidOperationException error)
+        {
+            ImportDiagnostics = error.Message;
+        }
+    }
+
+    private ConfigSyntaxNode? InsertionScope(ConfigSyntaxDocument doc) =>
+        ConfigBlockEditor.GetInsertionScope(doc, SelectedImportNode?.Node);
+
+    private void AddDirectiveToSelection() =>
+        ApplyEditorOperation(doc => ConfigBlockEditor.AddDirective(
+            doc, InsertionScope(doc), NewDirectiveName, NewDirectiveArguments));
+
+    private void AddBlockToSelection() =>
+        ApplyEditorOperation(doc => ConfigBlockEditor.AddBlock(
+            doc, InsertionScope(doc), NewBlockName, NewBlockArguments));
+
+    private void RemoveSelectedNode()
+    {
+        if (SelectedImportNode?.Node is { } selected)
+            ApplyEditorOperation(doc => ConfigBlockEditor.Remove(doc, selected));
+    }
+
+    private void DuplicateSelectedNode()
+    {
+        if (SelectedImportNode?.Node is { } selected)
+            ApplyEditorOperation(doc => ConfigBlockEditor.Duplicate(doc, selected));
+    }
+
+    private void MoveSelectedNode(int direction)
+    {
+        if (SelectedImportNode?.Node is { } selected)
+            ApplyEditorOperation(doc => ConfigBlockEditor.Move(doc, selected, direction));
+    }
+
+    private void UndoEdit()
+    {
+        if (!_undo.TryPop(out var previous))
+            return;
+        _redo.Push(ImportText);
+        ImportText = previous;
+        ReparseImported(recordHistory: false);
+        NotifyHistory();
+    }
+
+    private void RedoEdit()
+    {
+        if (!_redo.TryPop(out var next))
+            return;
+        _undo.Push(ImportText);
+        ImportText = next;
+        ReparseImported(recordHistory: false);
+        NotifyHistory();
     }
 
     private void ApplyNodeEdit()

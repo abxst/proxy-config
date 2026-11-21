@@ -3,10 +3,10 @@
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     Title="Proxy Config"
-    Width="1230"
-    Height="790"
-    MinWidth="1000"
-    MinHeight="660"
+    Width="1320"
+    Height="850"
+    MinWidth="1080"
+    MinHeight="720"
     WindowStartupLocation="CenterScreen">
 
   <Grid RowDefinitions="Auto,*">
@@ -39,7 +39,7 @@
                      Text="Generate static sites, reverse proxies and redirects. Browse the public directive catalog offline." />
           <Separator Margin="0,12" />
           <TextBlock Margin="8,0" TextWrapping="Wrap" Opacity="0.55" FontSize="12"
-                     Text="Import and edit existing config without losing unknown directives. Typed property forms and load balancing are planned next." />
+                     Text="Multi-block editing, directive suggestions and undo/redo are available in Import / Editor. Typed argument forms are planned next." />
         </StackPanel>
       </Border>
 
@@ -210,20 +210,21 @@
         </ScrollViewer>
       </Grid>
 
-      <Grid Grid.Column="1" IsVisible="{Binding IsImport}" ColumnDefinitions="350,*">
+      <Grid Grid.Column="1" IsVisible="{Binding IsImport}" ColumnDefinitions="395,*">
         <Grid Grid.Column="0" RowDefinitions="Auto,Auto,Auto,*,Auto,Auto"
               Margin="18,20,8,16" RowSpacing="12">
           <StackPanel Spacing="6">
             <TextBlock FontSize="24" FontWeight="SemiBold" Text="Import / Editor" />
             <TextBlock TextWrapping="Wrap" FontSize="12" Opacity="0.7"
-                       Text="Import .conf, inspect AST, edit nodes and export while preserving unknown directives and comments." />
+                       Text="Import .conf, manage multiple nested blocks and export without dropping unknown directives or comments." />
             <TextBlock Text="{Binding ImportFileName}" Opacity="0.6" FontSize="12" />
           </StackPanel>
-          <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8">
+          <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="7">
             <Button Click="ImportConfig_Click" Content="Open .conf" />
             <Button Command="{Binding ParseImportedCommand}" Content="Parse" />
+            <Button Command="{Binding SelectRootScopeCommand}" Content="Root scope" />
             <Button Command="{Binding AppendGeneratedHostCommand}"
-                    IsEnabled="{Binding CanAppendGeneratedHost}" Content="+ Last preset" />
+                    IsEnabled="{Binding CanAppendGeneratedHost}" Content="+ Preset" />
           </StackPanel>
           <TextBlock Grid.Row="2" Text="{Binding ImportSummary}" FontSize="12" Opacity="0.7" />
           <ListBox Grid.Row="3" ItemsSource="{Binding ImportedNodes}" SelectedItem="{Binding SelectedImportNode}">
@@ -233,12 +234,65 @@
               </DataTemplate>
             </ListBox.ItemTemplate>
           </ListBox>
-          <StackPanel Grid.Row="4" Spacing="8">
-            <TextBlock FontWeight="SemiBold" Text="Selected node (editable)" />
-            <TextBox Text="{Binding NodeReplacementText, UpdateSourceTrigger=PropertyChanged}"
-                     AcceptsReturn="True" TextWrapping="Wrap" MinHeight="75" MaxHeight="130" />
-            <Button Command="{Binding ApplyNodeEditCommand}" Content="Apply node replacement" />
-          </StackPanel>
+          <TabControl Grid.Row="4" MaxHeight="335">
+            <TabItem Header="Edit / Arrange">
+              <StackPanel Margin="6,10,6,6" Spacing="8">
+                <TextBlock FontSize="12" TextWrapping="Wrap" Opacity="0.7"
+                           Text="Select an AST node to replace, duplicate, remove or reorder it." />
+                <TextBox Text="{Binding NodeReplacementText, UpdateSourceTrigger=PropertyChanged}"
+                         AcceptsReturn="True" TextWrapping="Wrap" MinHeight="65" MaxHeight="100" />
+                <Button Command="{Binding ApplyNodeEditCommand}" Content="Apply node replacement" />
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <Button Command="{Binding DuplicateNodeCommand}" Content="Duplicate" />
+                  <Button Command="{Binding RemoveNodeCommand}" Content="Remove" />
+                  <Button Command="{Binding MoveNodeUpCommand}" Content="Move ↑" />
+                  <Button Command="{Binding MoveNodeDownCommand}" Content="Move ↓" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <Button Command="{Binding UndoEditCommand}" IsEnabled="{Binding CanUndo}" Content="Undo" />
+                  <Button Command="{Binding RedoEditCommand}" IsEnabled="{Binding CanRedo}" Content="Redo" />
+                </StackPanel>
+              </StackPanel>
+            </TabItem>
+            <TabItem Header="+ Directive">
+              <ScrollViewer MaxHeight="290">
+                <StackPanel Margin="6,10,6,6" Spacing="7">
+                  <TextBlock FontSize="12" TextWrapping="Wrap" Opacity="0.7"
+                             Text="Search offline documentation, or type any directive manually." />
+                  <TextBox PlaceholderText="Search directive..." Text="{Binding DirectiveSearchText, UpdateSourceTrigger=PropertyChanged}" />
+                  <ListBox Height="88" ItemsSource="{Binding DirectiveSuggestions}"
+                           SelectedItem="{Binding SelectedSuggestion}">
+                    <ListBox.ItemTemplate>
+                      <DataTemplate>
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                          <TextBlock FontWeight="SemiBold" Text="{Binding Name}" />
+                          <TextBlock FontSize="11" Opacity="0.6" Text="{Binding Module}" />
+                        </StackPanel>
+                      </DataTemplate>
+                    </ListBox.ItemTemplate>
+                  </ListBox>
+                  <TextBox PlaceholderText="Directive name" Text="{Binding NewDirectiveName, UpdateSourceTrigger=PropertyChanged}" />
+                  <TextBox PlaceholderText="Arguments (without trailing semicolon)" Text="{Binding NewDirectiveArguments, UpdateSourceTrigger=PropertyChanged}" />
+                  <TextBlock FontSize="11" Opacity="0.7" TextWrapping="Wrap" Text="{Binding DirectiveHint}" />
+                  <Button Command="{Binding AddDirectiveCommand}" Content="Add directive to selected scope" />
+                </StackPanel>
+              </ScrollViewer>
+            </TabItem>
+            <TabItem Header="+ Block">
+              <StackPanel Margin="6,10,6,6" Spacing="10">
+                <TextBlock FontSize="12" TextWrapping="Wrap" Opacity="0.7"
+                           Text="Insert inside selected block; if a directive is selected, insert beside it." />
+                <TextBlock FontSize="12" Text="{Binding EditorScopeContext}" />
+                <TextBox PlaceholderText="Block name (server, location, Directory, VirtualHost, ...)"
+                         Text="{Binding NewBlockName, UpdateSourceTrigger=PropertyChanged}" />
+                <TextBox PlaceholderText="Block arguments (e.g. /api/ or *:80)"
+                         Text="{Binding NewBlockArguments, UpdateSourceTrigger=PropertyChanged}" />
+                <Button Command="{Binding AddBlockCommand}" Content="Add block to selected scope" />
+                <TextBlock FontSize="11" Opacity="0.6" TextWrapping="Wrap"
+                           Text="Structural syntax is checked. The app does not guarantee semantic validity or module availability." />
+              </StackPanel>
+            </TabItem>
+          </TabControl>
           <ScrollViewer Grid.Row="5" MaxHeight="95">
             <StackPanel Spacing="4">
               <TextBlock Foreground="OrangeRed" Text="{Binding ImportDiagnostics}" TextWrapping="Wrap" />

@@ -38,16 +38,18 @@
 - Reference and dependency diagnostics
 - Security lint warnings without automatic rewriting
 
-## M4 — Visual configuration editor
+## M4 — Visual configuration editor (partially shipped in v0.4)
 
-- Configuration tree
-- Registry-driven property editor
-- Search and command palette
-- Undo/redo
-- **Multi-block (required):** multiple server/VirtualHost blocks in one file or project
-- **Nested multi-block:** multiple NGINX `location`/`upstream`/`map` and Apache `<Directory>`/`<Location>`/`<Proxy>` blocks with context-aware containment
-- Add, remove, duplicate, reorder and move blocks without dropping unknown directives or comments
-- Per-block presets and independent settings for multiple hosts/routes/upstreams
+- [x] Configuration tree for a single imported text document
+- [x] Offline catalog search to suggest directive names and display documented syntax/context/module
+- [x] Undo/redo for applied AST edits and parsed text changes
+- [x] **Multi-block:** multiple NGINX server or Apache VirtualHost siblings; explicit root scope insertion
+- [x] **Nested multi-block:** construct multiple NGINX brace blocks and Apache containers by block name and arguments, including location/Directory/Location
+- [x] Add, remove, duplicate and reorder sibling blocks/directives while preserving unmodified source spans; moves across comments are deliberately blocked
+- [ ] Registry-driven typed property editor and validation for each directive argument
+- [ ] Verified context-aware containment, module/version compatibility and semantic diagnostics (M3)
+- [ ] Move blocks across different parents, drag and drop, and command palette
+- [ ] Project-level multi-file editor and per-block preset forms for host/route/upstream settings
 
 ## M5 — Presets
 
