@@ -24,7 +24,9 @@ public sealed class ConfigTextNavigatorTests
     {
         var source = "server Foo;\nserver BAR;\nserver foo;\n";
         var first = ConfigTextNavigator.FindNext(source, "foo");
-        Assert.Equal((7, 10), first);
+        Assert.NotNull(first);
+        Assert.Equal(7, first.Value.Start);
+        Assert.Equal(10, first.Value.End);
         var next = ConfigTextNavigator.FindNext(source, "foo", first!.Value.End);
         Assert.NotNull(next);
         Assert.True(next.Value.Start > first.Value.Start);
