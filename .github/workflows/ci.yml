@@ -74,7 +74,16 @@ jobs:
         run: dotnet build ProxyConfig.sln --configuration ${{ matrix.configuration }} --no-restore
 
       - name: Test
-        run: dotnet test ProxyConfig.sln --configuration ${{ matrix.configuration }} --no-build --logger "trx;LogFileName=tests.trx"
+        timeout-minutes: 10
+        run: dotnet test ProxyConfig.sln --configuration ${{ matrix.configuration }} --no-build --logger "trx;LogFileName=tests.trx" --blame-hang-timeout 4m --blame-hang-dump-type none
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports-${{ matrix.configuration }}
+          path: '**/TestResults/*.trx'
+          if-no-files-found: ignore
 
       - name: Publish Windows x64
         run: dotnet publish src/ProxyConfig.App/ProxyConfig.App.csproj --configuration ${{ matrix.configuration }} --runtime win-x64 --self-contained false --output artifacts/${{ matrix.configuration }}/win-x64
