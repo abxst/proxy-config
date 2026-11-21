@@ -64,6 +64,12 @@ are written under `sites/*.conf`; `httpd.conf` contains distinct `Listen` ports
 and user-editable `ServerRoot` / optional installed-module configuration.
 The UI exports the selected preset as a full-project ZIP and retains the
 existing single-snippet export. Core callers can compose multiple fragments.
+The generator-pane composer can queue multiple immutable preset snapshots
+(across generator pages), remove/reorder them and export only the selected
+server engine's queue; with an empty queue, full-project export uses the current
+live preview. Exact repeated hostname/listener signatures are refused when
+adding a queued preset; numeric filename prefixes preserve queue order for
+globbing include directives. Non-exact route overlaps remain advisory.
 
 These files are **scaffolds**, not guaranteed portable drop-in installations:
 Apache MPM/module load order, user/group/runtime paths, NGINX dynamic Stream

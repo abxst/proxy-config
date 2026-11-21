@@ -73,6 +73,28 @@ public sealed class ConfigProjectScaffolderTests
     }
 
     [Fact]
+    public void NumberedPresetsComposeHttpAndStreamIntoDeterministicArchiveEntries()
+    {
+        var project = ConfigProjectScaffolder.Create(Nginx,
+        [
+            new("001-proxy", "server { listen 80; server_name proxy.test; }"),
+            new("002-static", "server { listen 81; server_name static.test; }"),
+            new("003-stream", "stream { server { listen 9000; proxy_pass 127.0.0.1:9001; } }")
+        ]);
+        Assert.Empty(project.AnalyzeIncludes(ServerEngine.Nginx, "nginx.conf").Issues);
+        using var stream = new MemoryStream();
+        project.WriteZip(stream);
+        stream.Position = 0;
+        using var zip = new ZipArchive(stream);
+        string[] expected =
+        [
+            "conf.d/001-proxy.conf", "conf.d/002-static.conf", "mime.types",
+            "nginx.conf", "stream.d/003-stream.conf"
+        ];
+        Assert.Equal(expected, zip.Entries.Select(e => e.FullName).ToArray());
+    }
+
+    [Fact]
     public void FastCgiPresetIncludesSelfContainedFastCgiParameterFile()
     {
         var host = """

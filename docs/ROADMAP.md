@@ -109,7 +109,7 @@ testable increments, each with one PR and green Windows Debug/Release CI.
 `VERSION` follows SemVer; each successful push to `main` publishes tagged
 Debug and Release archives.
 
-### M8 — Full configuration project engine (v0.16, in progress)
+### M8 — Full configuration project engine (v0.16/v0.18, in progress)
 
 - [x] Generate a root `nginx.conf` or `httpd.conf` with separate include files.
 - [x] Accept multiple named host fragments in the core project builder.
@@ -117,7 +117,7 @@ Debug and Release archives.
 - [x] Package local MIME types and required FastCGI parameters without reading server files.
 - [x] Derive Apache `Listen` from VirtualHosts; expose `ServerRoot` and optional module include.
 - [x] Validate names, sizes, structural syntax and broad placement; use the existing safe ZIP writer.
-- [ ] Compose and reorder multiple generated presets from the visual UI.
+- [x] Queue, remove and reorder multiple generated presets from the visual UI, with exact duplicate HTTP host guard.
 - [ ] Additional NGINX global contexts and Apache main-scope options with target profiles.
 
 **Acceptance:** no double-nested contexts, no missing generated include,
