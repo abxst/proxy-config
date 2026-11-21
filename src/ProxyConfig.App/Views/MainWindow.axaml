@@ -54,23 +54,23 @@
           </StackPanel>
 
           <TextBlock FontWeight="SemiBold" Text="Domain" />
-          <TextBox Text="{Binding Domain, UpdateSourceTrigger=PropertyChanged}" Watermark="example.com" />
+          <TextBox Text="{Binding Domain, UpdateSourceTrigger=PropertyChanged}" PlaceholderText="example.com" />
 
           <TextBlock FontWeight="SemiBold" Text="Listen port" />
           <NumericUpDown Minimum="1" Maximum="65535" Value="{Binding ListenPort}" />
 
           <TextBlock FontWeight="SemiBold" Text="Static directory" />
           <TextBox Text="{Binding StaticDirectory, UpdateSourceTrigger=PropertyChanged}"
-                   Watermark="/srv/www/example" />
+                   PlaceholderText="/srv/www/example" />
           <TextBlock Margin="0,-8,0,0" FontSize="12" Opacity="0.55"
                      Text="This is the path on the target server; it does not need to exist on this computer." />
 
           <TextBlock FontWeight="SemiBold" Text="URL path" />
-          <TextBox Text="{Binding UrlPath, UpdateSourceTrigger=PropertyChanged}" Watermark="/" />
+          <TextBox Text="{Binding UrlPath, UpdateSourceTrigger=PropertyChanged}" PlaceholderText="/" />
 
           <TextBlock FontWeight="SemiBold" Text="Index files" />
           <TextBox Text="{Binding IndexFiles, UpdateSourceTrigger=PropertyChanged}"
-                   Watermark="index.html index.htm" />
+                   PlaceholderText="index.html index.htm" />
 
           <Separator Margin="0,6" />
 
@@ -103,8 +103,8 @@
                  TextWrapping="NoWrap"
                  FontFamily="Consolas"
                  FontSize="14"
-                 HorizontalScrollBarVisibility="Auto"
-                 VerticalScrollBarVisibility="Auto"
+                 ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                 ScrollViewer.VerticalScrollBarVisibility="Auto"
                  Text="{Binding Preview}" />
       </Grid>
     </Grid>

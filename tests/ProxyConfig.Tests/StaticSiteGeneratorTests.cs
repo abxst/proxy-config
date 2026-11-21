@@ -2,6 +2,7 @@ using ProxyConfig.Apache;
 using ProxyConfig.Core.Models;
 using ProxyConfig.Core.Validation;
 using ProxyConfig.Nginx;
+using Xunit;
 
 namespace ProxyConfig.Tests;
 
