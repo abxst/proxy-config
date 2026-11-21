@@ -52,10 +52,11 @@
 - [ ] Registry-driven typed property editor and validation for each directive argument
 - [ ] Verified, target-server-aware context/module/version compatibility and semantic diagnostics (M3; advisory context checks implemented)
 - [x] Move blocks/directives into a different parent within the same file, with cycle and attached-comment guards (v0.7)
-- [ ] Drag and drop, command palette and cross-file relocation
+- [x] Cross-file relocation between explicitly imported files with guarded one-level undo (v0.8)
+- [ ] Drag and drop and command palette
 - [x] Multi-file editor with explicit imports, independent edit histories and ZIP export (v0.6)
 - [x] Add static filesystem-serving route into a selected host with existing generator options (v0.7)
-- [ ] Per-block proxy/redirect/upstream forms and cross-file block moves
+- [ ] Per-block proxy/redirect/upstream forms (cross-file block moves implemented v0.8)
 
 ## M5 — Presets
 
@@ -83,6 +84,8 @@ Static Website is the first implemented preset. Continue with:
 ## M7 — Coverage and hardening
 
 - Audit every public documented directive against target upstream snapshots
-- Fuzz parsers
-- Golden corpus from official examples
-- Large configuration performance tests
+- [x] Deterministic bounded-input fuzz tests for both parsers (v0.8)
+- [x] Regression test parsing 1,000 Apache Virtual Hosts (v0.8)
+- [x] Strict UTF-8/UTF-16/UTF-32 BOM round trips, reject invalid bytes (v0.8)
+- [ ] Continuous structured fuzzing with sanitizers and real-world corpus
+- [ ] Golden corpus from official examples and large config performance benchmarks

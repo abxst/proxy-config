@@ -13,6 +13,7 @@
 - Create an in-memory multi-file workspace through explicit file/folder selection or new-file commands, inspect include edges and missing dependencies, and export a safe ZIP containing the selected project files.
 - Show a bounded line-by-line diff from imported text, search nodes by name/kind, and infer simple enum/number/size argument forms from the catalog with raw fallback.
 - Relocate directives/blocks across parents within a document and insert built-in static route fragments into a selected existing host.
+- Move syntax subtrees between explicitly imported files with an atomic two-document calculation and guarded one-level undo; retain Unicode file BOM/encoding on export.
 - Identify Virtual Hosts and append another generated NGINX server (inside an existing `http` block when present) or Apache `VirtualHost`.
 - Evaluate a finite in-memory set of files for `include` / `Include` / `IncludeOptional` edges, wildcards, missing required paths, circular references and recursion depth.
 - Import UTF-8 configuration through Avalonia's open dialog; export the current UTF-8 text through its save dialog.
@@ -23,7 +24,8 @@
 - Context warnings are conservative. Unknown directives or ambiguous third-party module contexts are kept without a warning. A context match does not guarantee validity on a particular installed server.
 - Inserted directives must use single-line arguments; multi-line and compound snippets are intentionally rejected. Use direct node replacement for advanced raw snippets.
 - The up/down commands reorder only within one parent; the separate "Move to" command can relocate to another parent in the same file. Both operations refuse potentially attached comments.
-- Cross-parent moves cannot use the source node's own descendants as a target and reject potentially attached comments. Cross-file moves remain pending.
+- Cross-parent moves cannot use the source node's own descendants as a target and reject potentially attached comments. Cross-file transfer undo is intentionally one-level and invalidates when either file has changed.
+- Malformed non-Unicode legacy encodings are refused; byte-identical preservation is guaranteed only for the supported UTF formats, not arbitrary legacy code pages.
 - Some unusual constructs (for example comments embedded within unfinished directives, uncommon Apache container formatting or non-UTF-8 encodings) may produce structural diagnostics. Original text is still retained.
 - Include graph does not read arbitrary files from disk or remote systems. It resolves only explicitly supplied workspace files.
 - The GUI imports multiple files into an in-memory workspace but edits one active document at a time. Folder import is explicitly user-selected and subject to limits; it does not follow included paths outside the workspace.

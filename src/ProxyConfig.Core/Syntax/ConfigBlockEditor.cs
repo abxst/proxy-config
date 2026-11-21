@@ -48,7 +48,8 @@ public static partial class ConfigBlockEditor
     public static ConfigSyntaxDocument InsertGeneratedSnippet(
         ConfigSyntaxDocument document, ConfigSyntaxNode? parent, string snippet)
     {
-        var parsed = ConfigSyntaxDocument.Parse(document.Engine, snippet ?? string.Empty);
+        snippet ??= string.Empty;
+        var parsed = ConfigSyntaxDocument.Parse(document.Engine, snippet);
         if (parsed.Diagnostics.Count > 0 || parsed.Nodes.Any(n => n.Kind == ConfigNodeKind.Raw) ||
             !parsed.Nodes.Any(n => n.Kind is ConfigNodeKind.Block or ConfigNodeKind.Directive))
             throw new ArgumentException("Generated snippet is not structurally valid.", nameof(snippet));
@@ -148,6 +149,35 @@ public static partial class ConfigBlockEditor
         if (freshDestination is null)
             throw new InvalidOperationException("Destination changed during relocation.");
         return Insert(removed, freshDestination, fragment);
+    }
+
+    /// <summary>
+    /// Atomically computes two new immutable documents for a cross-file move.
+    /// The caller must commit both documents as one workspace transaction.
+    /// </summary>
+    public static (ConfigSyntaxDocument Source, ConfigSyntaxDocument Destination) MoveBetweenDocuments(
+        ConfigSyntaxDocument source, ConfigSyntaxNode node,
+        ConfigSyntaxDocument destination, ConfigSyntaxNode? destinationParent)
+    {
+        if (ReferenceEquals(source, destination))
+            throw new ArgumentException("Use MoveToParent for same-document moves.");
+        if (source.Engine != destination.Engine)
+            throw new ArgumentException("Source and target engines must match.");
+        FindParent(source, node, out var siblings);
+        if (node.Kind is not (ConfigNodeKind.Block or ConfigNodeKind.Directive))
+            throw new ArgumentException("Only directives/blocks can move across files.");
+        if (HasInlineComment(source.Text, node) || HasAdjacentLeadingComment(siblings, node))
+            throw new InvalidOperationException("Source has potentially attached comments.");
+        if (destinationParent is not null)
+        {
+            EnsureBelongs(destination, destinationParent);
+            if (destinationParent.Kind != ConfigNodeKind.Block || !destinationParent.IsClosed)
+                throw new ArgumentException("Destination must be a closed block.");
+        }
+        var snippet = ReindentFragment(source.GetText(node));
+        var updatedDestination = InsertGeneratedSnippet(destination, destinationParent, snippet);
+        var updatedSource = source.ReplaceNode(node, string.Empty);
+        return (updatedSource, updatedDestination);
     }
 
     private static bool HasAdjacentLeadingComment(
