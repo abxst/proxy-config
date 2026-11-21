@@ -40,6 +40,7 @@
 - [ ] Complete per-directive argument grammars and semantic validation
 - [ ] Exact installed module, edition/platform and version compatibility checks
 - [x] Narrow non-blocking security review hints for directory listing and server token exposure (v0.9)
+- [x] Non-blocking legacy TLS protocol hints (v0.13)
 - [ ] Complete reference/dependency diagnostics, broader security lint with policy profiles
 
 ## M4 — Visual configuration editor (partially shipped in v0.4)
@@ -58,6 +59,7 @@
 - [x] Multi-file editor with explicit imports, independent edit histories and ZIP export (v0.6)
 - [x] Add static filesystem-serving route into a selected host with existing generator options (v0.7)
 - [x] Per-host HTTP reverse-proxy route insertion (v0.11)
+- [x] Guard exact duplicate route selectors before preset insertion (v0.13)
 - [ ] Per-block redirect/upstream editing forms and conflict-aware routing
 
 ## M5 — Presets

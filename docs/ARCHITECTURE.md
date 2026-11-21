@@ -137,6 +137,20 @@ connection is negotiated; verify the default server's effective settings
 when several TLS Virtual Hosts share one listening socket. These profiles
 are only protocol allowlists, not complete cipher or PKI hardening policies.
 
+## Exact route-conflict guard and TLS review hints
+
+`ConfigRouteConflictDetector` compares the generated route's explicit selector
+against direct children of the selected HTTP VirtualHost. It refuses repeated
+NGINX `location` headers, Apache `ProxyPass`/`Alias` mount points, or repeated
+Apache `FilesMatch` headers. The comparison is intentionally narrow: it does
+not claim to understand overlapping wildcard or regex paths, rewrite order,
+or complex inherited routing. No existing config is automatically removed.
+
+`ConfigSecurityLinter` also displays non-blocking warnings for explicit
+legacy SSL/TLS protocol selections; ambiguous Apache exclusions are not
+interpreted as positive protocol enables. These remain review hints rather
+than an exhaustive security audit.
+
 ## Export
 
 The Static Website screen generates native config text with a validation gate. The UI saves UTF-8 text using Avalonia's platform SaveFilePicker; it does not write to a running server.
