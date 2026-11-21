@@ -1,0 +1,43 @@
+
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ProxyConfig.Core", "src\ProxyConfig.Core\ProxyConfig.Core.csproj", "{A1D7D519-2A0D-4A5E-9B91-8297C8333101}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ProxyConfig.Nginx", "src\ProxyConfig.Nginx\ProxyConfig.Nginx.csproj", "{52A70172-6636-4EC6-9781-0A8E59B46C93}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ProxyConfig.Apache", "src\ProxyConfig.Apache\ProxyConfig.Apache.csproj", "{9CE58F75-3105-40CE-A2B0-F4923D96DBA2}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ProxyConfig.App", "src\ProxyConfig.App\ProxyConfig.App.csproj", "{CE54803B-76FB-4FA8-A2EB-B68384852507}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ProxyConfig.Tests", "tests\ProxyConfig.Tests\ProxyConfig.Tests.csproj", "{F5ED7230-006A-49BA-93A7-E62C06274169}"
+EndProject
+Global
+  GlobalSection(SolutionConfigurationPlatforms) = preSolution
+    Debug|Any CPU = Debug|Any CPU
+    Release|Any CPU = Release|Any CPU
+  EndGlobalSection
+  GlobalSection(ProjectConfigurationPlatforms) = postSolution
+    {A1D7D519-2A0D-4A5E-9B91-8297C8333101}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+    {A1D7D519-2A0D-4A5E-9B91-8297C8333101}.Debug|Any CPU.Build.0 = Debug|Any CPU
+    {A1D7D519-2A0D-4A5E-9B91-8297C8333101}.Release|Any CPU.ActiveCfg = Release|Any CPU
+    {A1D7D519-2A0D-4A5E-9B91-8297C8333101}.Release|Any CPU.Build.0 = Release|Any CPU
+    {52A70172-6636-4EC6-9781-0A8E59B46C93}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+    {52A70172-6636-4EC6-9781-0A8E59B46C93}.Debug|Any CPU.Build.0 = Debug|Any CPU
+    {52A70172-6636-4EC6-9781-0A8E59B46C93}.Release|Any CPU.ActiveCfg = Release|Any CPU
+    {52A70172-6636-4EC6-9781-0A8E59B46C93}.Release|Any CPU.Build.0 = Release|Any CPU
+    {9CE58F75-3105-40CE-A2B0-F4923D96DBA2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+    {9CE58F75-3105-40CE-A2B0-F4923D96DBA2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+    {9CE58F75-3105-40CE-A2B0-F4923D96DBA2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+    {9CE58F75-3105-40CE-A2B0-F4923D96DBA2}.Release|Any CPU.Build.0 = Release|Any CPU
+    {CE54803B-76FB-4FA8-A2EB-B68384852507}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+    {CE54803B-76FB-4FA8-A2EB-B68384852507}.Debug|Any CPU.Build.0 = Debug|Any CPU
+    {CE54803B-76FB-4FA8-A2EB-B68384852507}.Release|Any CPU.ActiveCfg = Release|Any CPU
+    {CE54803B-76FB-4FA8-A2EB-B68384852507}.Release|Any CPU.Build.0 = Release|Any CPU
+    {F5ED7230-006A-49BA-93A7-E62C06274169}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+    {F5ED7230-006A-49BA-93A7-E62C06274169}.Debug|Any CPU.Build.0 = Debug|Any CPU
+    {F5ED7230-006A-49BA-93A7-E62C06274169}.Release|Any CPU.ActiveCfg = Release|Any CPU
+    {F5ED7230-006A-49BA-93A7-E62C06274169}.Release|Any CPU.Build.0 = Release|Any CPU
+  EndGlobalSection
+EndGlobal
