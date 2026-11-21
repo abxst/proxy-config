@@ -260,7 +260,7 @@
             </ListBox>
           </Grid>
           <TabControl Grid.Row="4" MaxHeight="335">
-            <TabItem Header="Edit / Arrange">
+            <TabItem Header="Edit">
               <StackPanel Margin="6,10,6,6" Spacing="8">
                 <TextBlock FontSize="12" TextWrapping="Wrap" Opacity="0.7"
                            Text="Select an AST node to replace, duplicate, remove or reorder it." />
@@ -274,12 +274,21 @@
                   <Button Command="{Binding MoveNodeDownCommand}" Content="Move ↓" />
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" Spacing="6">
+                  <ComboBox Width="260" ItemsSource="{Binding BlockTargets}"
+                            SelectedItem="{Binding SelectedMoveTarget}">
+                    <ComboBox.ItemTemplate>
+                      <DataTemplate><TextBlock Text="{Binding Display}" /></DataTemplate>
+                    </ComboBox.ItemTemplate>
+                  </ComboBox>
+                  <Button Command="{Binding MoveNodeToTargetCommand}" Content="Move to" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="6">
                   <Button Command="{Binding UndoEditCommand}" IsEnabled="{Binding CanUndo}" Content="Undo" />
                   <Button Command="{Binding RedoEditCommand}" IsEnabled="{Binding CanRedo}" Content="Redo" />
                 </StackPanel>
               </StackPanel>
             </TabItem>
-            <TabItem Header="+ Directive">
+            <TabItem Header="Directive">
               <ScrollViewer MaxHeight="290">
                 <StackPanel Margin="6,10,6,6" Spacing="7">
                   <TextBlock FontSize="12" TextWrapping="Wrap" Opacity="0.7"
@@ -312,7 +321,7 @@
                 </StackPanel>
               </ScrollViewer>
             </TabItem>
-            <TabItem Header="+ Block">
+            <TabItem Header="Block">
               <StackPanel Margin="6,10,6,6" Spacing="10">
                 <TextBlock FontSize="12" TextWrapping="Wrap" Opacity="0.7"
                            Text="Insert inside selected block; if a directive is selected, insert beside it." />
@@ -326,7 +335,7 @@
                            Text="Structural syntax is checked. Context warnings appear under Diagnostics. Module/edition/version support is not guaranteed." />
               </StackPanel>
             </TabItem>
-            <TabItem Header="Diagnostics">
+            <TabItem Header="Warnings">
               <StackPanel Margin="6,10,6,6" Spacing="8">
                 <TextBlock FontSize="12" TextWrapping="Wrap" Opacity="0.7"
                            Text="{Binding ContextWarningSummary}" />
@@ -342,7 +351,7 @@
                            Text="Warnings use published directive contexts. Unknown/conditional scopes and module availability cannot be fully validated offline." />
               </StackPanel>
             </TabItem>
-            <TabItem Header="Includes">
+            <TabItem Header="Include">
               <StackPanel Margin="6,10,6,6" Spacing="8">
                 <TextBlock FontSize="12" Text="{Binding IncludeSummary}" TextWrapping="Wrap" />
                 <TextBlock FontSize="12" Text="Project root configuration" />
@@ -366,6 +375,29 @@
                          ScrollViewer.HorizontalScrollBarVisibility="Auto"
                          Text="{Binding DiffPreview}" />
               </StackPanel>
+            </TabItem>
+            <TabItem Header="Static">
+              <ScrollViewer MaxHeight="275">
+                <StackPanel Margin="6,10,6,6" Spacing="8">
+                  <TextBlock FontSize="12" TextWrapping="Wrap" Opacity="0.7"
+                             Text="Select a server / VirtualHost in the AST. Insert a static route into that host without creating another host." />
+                  <TextBox PlaceholderText="Server filesystem path"
+                           Text="{Binding StaticDirectory, UpdateSourceTrigger=PropertyChanged}" />
+                  <TextBox PlaceholderText="URL route, e.g. /assets/"
+                           Text="{Binding UrlPath, UpdateSourceTrigger=PropertyChanged}" />
+                  <TextBox PlaceholderText="Index filenames"
+                           Text="{Binding IndexFiles, UpdateSourceTrigger=PropertyChanged}" />
+                  <StackPanel Orientation="Horizontal" Spacing="10">
+                    <CheckBox Content="SPA fallback" IsChecked="{Binding SpaFallback}" />
+                    <CheckBox Content="Directory listing" IsChecked="{Binding DirectoryListing}" />
+                  </StackPanel>
+                  <StackPanel Orientation="Horizontal" Spacing="10">
+                    <CheckBox Content="Asset caching" IsChecked="{Binding CacheStaticAssets}" />
+                    <CheckBox Content="Compression" IsChecked="{Binding Compression}" />
+                  </StackPanel>
+                  <Button Command="{Binding AddStaticRouteCommand}" Content="Insert static route into selected host" />
+                </StackPanel>
+              </ScrollViewer>
             </TabItem>
           </TabControl>
           <ScrollViewer Grid.Row="5" MaxHeight="95">

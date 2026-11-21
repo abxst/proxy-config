@@ -157,4 +157,109 @@ public sealed class ConfigBlockEditorTests
         var foreign = ConfigSyntaxDocument.Parse(ServerEngine.Nginx, "server {}").VirtualHosts.Single();
         Assert.Throws<ArgumentException>(() => ConfigBlockEditor.Remove(doc, foreign));
     }
+
+    [Fact]
+    public void Nginx_RelocatesNestedLocationBetweenTwoServers()
+    {
+        const string source = """
+            http {
+                server {
+                    listen 80;
+                    location /api/ {
+                        proxy_pass http://127.0.0.1:3000;
+                    }
+                }
+                server {
+                    listen 8080;
+                }
+            }
+            """;
+        var doc = ConfigSyntaxDocument.Parse(ServerEngine.Nginx, source);
+        var sourceLocation = doc.AllNodes.Single(n => n.Name == "location");
+        var target = doc.VirtualHosts[1];
+
+        var result = ConfigBlockEditor.MoveToParent(doc, sourceLocation, target);
+        Assert.Empty(result.Diagnostics);
+        Assert.DoesNotContain(result.VirtualHosts[0].Children, n => n.Name == "location");
+        Assert.Single(result.VirtualHosts[1].Children, n => n.Name == "location");
+        Assert.Contains("proxy_pass http://127.0.0.1:3000;", result.Text);
+    }
+
+    [Fact]
+    public void Apache_RelocatesDirectoryIntoAnotherVirtualHost()
+    {
+        const string source = """
+            <VirtualHost *:80>
+                <Directory "/srv/web">
+                    Require all granted
+                </Directory>
+            </VirtualHost>
+            <VirtualHost *:8080>
+                ServerName other.example
+            </VirtualHost>
+            """;
+        var doc = ConfigSyntaxDocument.Parse(ServerEngine.Apache, source);
+        var directory = doc.AllNodes.Single(n => n.Name == "Directory");
+        var result = ConfigBlockEditor.MoveToParent(doc, directory, doc.VirtualHosts[1]);
+        Assert.Empty(result.Diagnostics);
+        Assert.DoesNotContain(result.VirtualHosts[0].Children, n => n.Name == "Directory");
+        Assert.Single(result.VirtualHosts[1].Children, n => n.Name == "Directory");
+    }
+
+    [Fact]
+    public void RelocationRejectsCyclesAndAdjacentComments()
+    {
+        var nested = ConfigSyntaxDocument.Parse(ServerEngine.Nginx,
+            "http {\nserver {\nlocation / {}\n}\n}\n");
+        var server = nested.VirtualHosts.Single();
+        var location = nested.AllNodes.Single(n => n.Name == "location");
+        Assert.Throws<InvalidOperationException>(() =>
+            ConfigBlockEditor.MoveToParent(nested, server, location));
+
+        var withComment = ConfigSyntaxDocument.Parse(ServerEngine.Nginx,
+            "http {\nserver {\n# attached\nlocation / {}\n}\nserver {}\n}\n");
+        var sourceLocation = withComment.AllNodes.Single(n => n.Name == "location");
+        Assert.Throws<InvalidOperationException>(() => ConfigBlockEditor.MoveToParent(
+            withComment, sourceLocation, withComment.VirtualHosts[1]));
+    }
+
+    [Fact]
+    public void GeneratedStaticRouteSnippetCanAddSeveralNodesToHost()
+    {
+        var doc = ConfigSyntaxDocument.Parse(ServerEngine.Apache,
+            "<VirtualHost *:80>\nServerName example.org\n</VirtualHost>\n");
+        var generated = """
+            Alias "/assets/" "/srv/assets/"
+            <Directory "/srv/assets/">
+                Require all granted
+                DirectoryIndex index.html
+            </Directory>
+            """;
+        var updated = ConfigBlockEditor.InsertGeneratedSnippet(
+            doc, doc.VirtualHosts.Single(), generated);
+
+        Assert.Empty(updated.Diagnostics);
+        Assert.Single(updated.VirtualHosts.Single().Children, n => n.Name == "Alias");
+        Assert.Single(updated.VirtualHosts.Single().Children, n => n.Name == "Directory");
+    }
+
+    [Fact]
+    public void Nginx_GeneratedStaticRouteKeepsExistingSiblingLocations()
+    {
+        var doc = ConfigSyntaxDocument.Parse(ServerEngine.Nginx,
+            "http {\nserver {\nlocation /api/ { proxy_pass http://127.0.0.1:3000; }\n}\n}\n");
+        var snippet = """
+            location /assets/ {
+                alias /srv/assets/;
+                index index.html;
+                autoindex off;
+            }
+            """;
+        var result = ConfigBlockEditor.InsertGeneratedSnippet(
+            doc, doc.VirtualHosts.Single(), snippet);
+        Assert.Empty(result.Diagnostics);
+        Assert.Equal(2, result.VirtualHosts.Single().Children.Count(n => n.Name == "location"));
+        Assert.Contains("proxy_pass http://127.0.0.1:3000;", result.Text);
+        Assert.Contains("alias /srv/assets/;", result.Text);
+    }
 }

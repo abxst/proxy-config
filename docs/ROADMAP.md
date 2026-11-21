@@ -51,9 +51,11 @@
 - [x] Add, remove, duplicate and reorder sibling blocks/directives while preserving unmodified source spans; moves across comments are deliberately blocked
 - [ ] Registry-driven typed property editor and validation for each directive argument
 - [ ] Verified, target-server-aware context/module/version compatibility and semantic diagnostics (M3; advisory context checks implemented)
-- [ ] Move blocks across different parents, drag and drop, and command palette
+- [x] Move blocks/directives into a different parent within the same file, with cycle and attached-comment guards (v0.7)
+- [ ] Drag and drop, command palette and cross-file relocation
 - [x] Multi-file editor with explicit imports, independent edit histories and ZIP export (v0.6)
-- [ ] Per-block preset forms for host/route/upstream settings and cross-file block moves
+- [x] Add static filesystem-serving route into a selected host with existing generator options (v0.7)
+- [ ] Per-block proxy/redirect/upstream forms and cross-file block moves
 
 ## M5 — Presets
 

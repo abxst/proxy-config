@@ -41,6 +41,20 @@ public static partial class ConfigBlockEditor
         return Insert(document, parent, fragment);
     }
 
+    /// <summary>
+    /// Insert a pre-generated, structurally valid collection of directives and
+    /// blocks. Intended for built-in presets, not untrusted free-form snippets.
+    /// </summary>
+    public static ConfigSyntaxDocument InsertGeneratedSnippet(
+        ConfigSyntaxDocument document, ConfigSyntaxNode? parent, string snippet)
+    {
+        var parsed = ConfigSyntaxDocument.Parse(document.Engine, snippet ?? string.Empty);
+        if (parsed.Diagnostics.Count > 0 || parsed.Nodes.Any(n => n.Kind == ConfigNodeKind.Raw) ||
+            !parsed.Nodes.Any(n => n.Kind is ConfigNodeKind.Block or ConfigNodeKind.Directive))
+            throw new ArgumentException("Generated snippet is not structurally valid.", nameof(snippet));
+        return Insert(document, parent, ReindentFragment(snippet));
+    }
+
     public static ConfigSyntaxDocument Remove(
         ConfigSyntaxDocument document, ConfigSyntaxNode node)
     {
@@ -92,6 +106,78 @@ public static partial class ConfigBlockEditor
         var originalRight = document.GetText(right);
         var between = document.Text[left.End..right.Start];
         return document.ReplaceSpan(left.Start, right.End, originalRight + between + originalLeft);
+    }
+
+    /// <summary>
+    /// Relocate a whole directive/block into another existing block or root.
+    /// Reparse between removal and insertion so stale source spans are never
+    /// reused. Comments outside the selected node stay at their original site.
+    /// </summary>
+    public static ConfigSyntaxDocument MoveToParent(
+        ConfigSyntaxDocument document, ConfigSyntaxNode node, ConfigSyntaxNode? destination)
+    {
+        var sourceParent = FindParent(document, node, out var siblings);
+        if (node.Kind is not (ConfigNodeKind.Block or ConfigNodeKind.Directive))
+            throw new ArgumentException("Only a directive or block may be relocated.", nameof(node));
+        if (destination is not null)
+        {
+            EnsureBelongs(document, destination);
+            if (destination.Kind != ConfigNodeKind.Block || !destination.IsClosed)
+                throw new ArgumentException("Destination must be a closed block.", nameof(destination));
+            if (destination.Start >= node.Start && destination.End <= node.End)
+                throw new InvalidOperationException("Cannot move a block into itself or its descendants.");
+        }
+        if (ReferenceEquals(sourceParent, destination))
+            throw new InvalidOperationException("Node is already in that scope.");
+        if (HasInlineComment(document.Text, node) ||
+            HasAdjacentLeadingComment(siblings, node))
+            throw new InvalidOperationException(
+                "Cannot relocate a node with an adjacent or inline comment without review.");
+
+        var fragment = ReindentFragment(document.GetText(node));
+        var removed = document.ReplaceNode(node, string.Empty);
+        if (destination is null)
+            return Insert(removed, null, fragment);
+
+        var destinationStart = destination.Start > node.End
+            ? destination.Start - (node.End - node.Start)
+            : destination.Start;
+        var freshDestination = removed.AllNodes.FirstOrDefault(candidate =>
+            candidate.Kind == ConfigNodeKind.Block && candidate.Start == destinationStart &&
+            candidate.Name == destination.Name);
+        if (freshDestination is null)
+            throw new InvalidOperationException("Destination changed during relocation.");
+        return Insert(removed, freshDestination, fragment);
+    }
+
+    private static bool HasAdjacentLeadingComment(
+        IReadOnlyList<ConfigSyntaxNode> siblings, ConfigSyntaxNode node)
+    {
+        var index = -1;
+        for (var i = 0; i < siblings.Count; i++)
+            if (ReferenceEquals(siblings[i], node)) { index = i; break; }
+        if (index < 0) return false;
+        for (var i = index - 1; i >= 0; i--)
+        {
+            if (siblings[i].Kind == ConfigNodeKind.Trivia)
+                continue;
+            return siblings[i].Kind == ConfigNodeKind.Comment;
+        }
+        return false;
+    }
+
+    private static string ReindentFragment(string fragment)
+    {
+        var lines = fragment.Trim().Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
+        if (lines.Length <= 1)
+            return fragment.Trim();
+        var baseline = lines.Skip(1)
+            .Where(line => line.Trim().Length > 0)
+            .Select(line => line.Length - line.TrimStart(' ', '\t').Length)
+            .DefaultIfEmpty(0).Min();
+        return string.Join('\n', lines.Select((line, index) =>
+            index == 0 || line.Length == 0 ? line :
+            line[Math.Min(baseline, line.Length)..]));
     }
 
     public static string GetContext(ConfigSyntaxDocument document, ConfigSyntaxNode? selected)
