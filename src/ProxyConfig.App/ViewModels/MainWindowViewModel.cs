@@ -80,6 +80,11 @@ public sealed class MainWindowViewModel : ObservableObject
     private bool _stripPrefix = true;
     private bool _preserveHost = true;
     private bool _webSocket;
+    private bool _useProxyTuning;
+    private int _proxyConnectTimeoutSeconds = 10;
+    private int _proxyReadTimeoutSeconds = 60;
+    private int _proxySendTimeoutSeconds = 60;
+    private bool _proxyBuffering = true;
     private bool _enableTls;
     private TlsProtocolProfile _tlsProtocolProfile = TlsProtocolProfile.Tls12And13;
     private string _certificateFile = string.Empty;
@@ -763,6 +768,36 @@ public sealed class MainWindowViewModel : ObservableObject
         set { if (SetProperty(ref _webSocket, value)) Regenerate(); }
     }
 
+    public bool UseProxyTuning
+    {
+        get => _useProxyTuning;
+        set { if (SetProperty(ref _useProxyTuning, value)) Regenerate(); }
+    }
+
+    public int ProxyConnectTimeoutSeconds
+    {
+        get => _proxyConnectTimeoutSeconds;
+        set { if (SetProperty(ref _proxyConnectTimeoutSeconds, value)) Regenerate(); }
+    }
+
+    public int ProxyReadTimeoutSeconds
+    {
+        get => _proxyReadTimeoutSeconds;
+        set { if (SetProperty(ref _proxyReadTimeoutSeconds, value)) Regenerate(); }
+    }
+
+    public int ProxySendTimeoutSeconds
+    {
+        get => _proxySendTimeoutSeconds;
+        set { if (SetProperty(ref _proxySendTimeoutSeconds, value)) Regenerate(); }
+    }
+
+    public bool ProxyBuffering
+    {
+        get => _proxyBuffering;
+        set { if (SetProperty(ref _proxyBuffering, value)) Regenerate(); }
+    }
+
     public bool EnableTls
     {
         get => _enableTls;
@@ -1162,6 +1197,11 @@ public sealed class MainWindowViewModel : ObservableObject
             StripPrefix = StripPrefix,
             PreserveHost = PreserveHost,
             WebSocket = WebSocket,
+            UseProxyTuning = UseProxyTuning,
+            ProxyConnectTimeoutSeconds = ProxyConnectTimeoutSeconds,
+            ProxyReadTimeoutSeconds = ProxyReadTimeoutSeconds,
+            ProxySendTimeoutSeconds = ProxySendTimeoutSeconds,
+            ProxyBuffering = ProxyBuffering,
             RequestHeaders = requestHeaders,
             ResponseHeaders = responseHeaders,
             RedirectDestination = (RedirectDestination ?? string.Empty).Trim(),
@@ -1918,6 +1958,11 @@ public sealed class MainWindowViewModel : ObservableObject
             StripPrefix = StripPrefix,
             PreserveHost = PreserveHost,
             WebSocket = WebSocket,
+            UseProxyTuning = UseProxyTuning,
+            ProxyConnectTimeoutSeconds = ProxyConnectTimeoutSeconds,
+            ProxyReadTimeoutSeconds = ProxyReadTimeoutSeconds,
+            ProxySendTimeoutSeconds = ProxySendTimeoutSeconds,
+            ProxyBuffering = ProxyBuffering,
             RequestHeaders = requestHeaders,
             ResponseHeaders = responseHeaders
         };

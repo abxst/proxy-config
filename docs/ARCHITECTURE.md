@@ -238,6 +238,14 @@ The Static Website screen generates native config text with a validation gate. T
 
 ## Host presets
 
+`HostConfigOptions` has an opt-in reverse-proxy tuning profile. NGINX writes
+connection, read and send timeouts plus response buffering directly inside
+the chosen `location`. When WebSocket is enabled, the explicit read timeout
+replaces the otherwise generated 3600-second default, avoiding duplicate
+directives. Apache maps the portable connection/read settings to `ProxyPass`
+worker `connectiontimeout`/`timeout`; it intentionally does not claim an
+equivalent buffering or independent send-timeout setting.
+
 The shared `HostConfigOptions` model and `HostConfigValidator` drive two more presets:
 
 - Reverse Proxy: mounted route, upstream HTTP(S) origin, strip/retain prefix, Host forwarding, WebSocket, request/response headers

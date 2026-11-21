@@ -62,6 +62,13 @@ public static class NginxHostGenerator
 
             sb.AppendLine($"    location {mountPath} {{");
             sb.AppendLine($"        proxy_pass {proxyPass};");
+            if (options.UseProxyTuning)
+            {
+                sb.AppendLine($"        proxy_connect_timeout {options.ProxyConnectTimeoutSeconds}s;");
+                sb.AppendLine($"        proxy_read_timeout {options.ProxyReadTimeoutSeconds}s;");
+                sb.AppendLine($"        proxy_send_timeout {options.ProxySendTimeoutSeconds}s;");
+                sb.AppendLine($"        proxy_buffering {(options.ProxyBuffering ? "on" : "off")};");
+            }
             if (options.PreserveHost)
                 sb.AppendLine("        proxy_set_header Host $host;");
             sb.AppendLine("        proxy_set_header X-Real-IP $remote_addr;");
@@ -73,7 +80,8 @@ public static class NginxHostGenerator
                 sb.AppendLine("        proxy_http_version 1.1;");
                 sb.AppendLine("        proxy_set_header Upgrade $http_upgrade;");
                 sb.AppendLine("        proxy_set_header Connection \"upgrade\";");
-                sb.AppendLine("        proxy_read_timeout 3600s;");
+                if (!options.UseProxyTuning)
+                    sb.AppendLine("        proxy_read_timeout 3600s;");
             }
 
             foreach (var header in options.RequestHeaders)

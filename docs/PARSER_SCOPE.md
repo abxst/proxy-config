@@ -14,6 +14,7 @@
 - Show a bounded line-by-line diff from imported text, search nodes by name/kind, and infer simple enum/number/size argument forms from the catalog with raw fallback.
 - Relocate directives/blocks across parents within a document and insert built-in static route fragments into a selected existing host.
 - Insert reverse-proxy routes or PHP-FPM handlers into a selected existing HTTP host; refuse NGINX stream/mail server contexts.
+- Optionally set bounded per-route proxy timeouts and NGINX response buffering; Apache uses supported ProxyPass worker timeout parameters.
 - Insert a validated NGINX gRPC route into an existing HTTP host while retaining its HTTP/2 and TLS listener configuration.
 - Add validated host-level logging and IP-only allow/deny policies; Apache authorization is scoped to `<Location>` and NGINX rules to the selected HTTP server/location.
 - Add explicit CIDR-based trusted `X-Forwarded-For` proxy IP reconstruction in generated or imported HTTP hosts, refusing unrestricted proxy trust and duplicate policies.

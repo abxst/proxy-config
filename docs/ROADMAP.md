@@ -138,9 +138,10 @@ Projects still require installed modules and server-specific runtime paths.
 **Acceptance:** diagnostics include file/line/context/reason/source; ambiguous
 module/version details remain non-blocking advisories.
 
-### M10 — Advanced proxy, security and observability (v0.19, in progress)
+### M10 — Advanced proxy, security and observability (v0.19/v0.20, in progress)
 
-- [ ] Per-route buffering, timeouts and retry profiles where supported.
+- [x] Per-route NGINX connect/read/send timeout and buffering controls; Apache ProxyPass connection/read timeouts.
+- [ ] Per-route retry profiles, Apache/AJP-specific buffering, upstream health settings where supported.
 - [ ] Apache HTTP/2 and gRPC upstream compatibility checks.
 - [ ] Advanced TLS cipher/ALPN/session/OCSP configuration.
 - [x] Explicit CIDR-based trusted X-Forwarded-For proxy policy for both engines, with module advisories and /0 guard.
