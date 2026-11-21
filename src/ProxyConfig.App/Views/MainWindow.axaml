@@ -425,6 +425,18 @@
                        Text="{Binding NewWorkspacePath, UpdateSourceTrigger=PropertyChanged}" />
               <Button Command="{Binding AddWorkspaceFileCommand}" Content="+ New file" />
             </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBox x:Name="SourceFindText" Width="205"
+                       Watermark="Find in raw source..." />
+              <Button Click="FindNextSource_Click" Content="Find next" />
+              <Button Click="JumpToSelectedNode_Click" Content="AST → source" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock VerticalAlignment="Center" Text="Go to line" />
+              <NumericUpDown x:Name="SourceLineNumber" Width="94" Minimum="1"
+                             Maximum="1000000" Value="1" />
+              <Button Click="GoToSourceLine_Click" Content="Go" />
+            </StackPanel>
           </StackPanel>
           <TextBlock Grid.Row="2" Text="{Binding ImportSummary}" FontSize="12" Opacity="0.7" />
           <Grid Grid.Row="3" RowDefinitions="Auto,*" RowSpacing="6">
@@ -767,7 +779,7 @@
                       Click="SaveConfig_Click" Content="Export .conf" />
             </Grid>
           </Border>
-          <TextBox Grid.Row="1" Margin="16" Padding="16"
+          <TextBox x:Name="ImportedSourceEditor" Grid.Row="1" Margin="16" Padding="16"
                    AcceptsReturn="True" TextWrapping="NoWrap"
                    FontFamily="Consolas" FontSize="13"
                    ScrollViewer.HorizontalScrollBarVisibility="Auto"

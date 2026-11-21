@@ -112,6 +112,71 @@ public partial class MainWindow : Window
                 .Contains(extension, StringComparer.OrdinalIgnoreCase);
     }
 
+    private void FindNextSource_Click(object? sender, RoutedEventArgs e)
+    {
+        var editor = this.FindControl<TextBox>("ImportedSourceEditor");
+        var query = this.FindControl<TextBox>("SourceFindText")?.Text;
+        if (editor is null)
+            return;
+        var result = ConfigTextNavigator.FindNext(
+            editor.Text ?? string.Empty, query, Math.Max(editor.SelectionStart, editor.SelectionEnd));
+        if (result is { } span)
+            FocusSourceSpan(editor, span.Start, span.End);
+        else if (DataContext is MainWindowViewModel viewModel)
+            viewModel.ExportStatus = "No matching text in the active source file.";
+    }
+
+    private void GoToSourceLine_Click(object? sender, RoutedEventArgs e)
+    {
+        var editor = this.FindControl<TextBox>("ImportedSourceEditor");
+        var numeric = this.FindControl<NumericUpDown>("SourceLineNumber");
+        if (editor is null || numeric is null)
+            return;
+        var line = (int)(numeric.Value ?? 1m);
+        if (ConfigTextNavigator.TryLineStart(editor.Text ?? string.Empty, line, out var offset))
+            FocusSourceSpan(editor, offset, offset);
+        else if (DataContext is MainWindowViewModel viewModel)
+            viewModel.ExportStatus = $"Line {line} is outside the active source file.";
+    }
+
+    private void JumpToSelectedNode_Click(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel viewModel ||
+            viewModel.SelectedImportNode is not { } selection)
+            return;
+        var editor = this.FindControl<TextBox>("ImportedSourceEditor");
+        if (editor is null || !viewModel.IsImportedAstCurrent ||
+            selection.Node.End > (editor.Text?.Length ?? 0))
+        {
+            viewModel.ExportStatus = "Source changed. Press Parse, then select a node again.";
+            return;
+        }
+        FocusSourceSpan(editor, selection.Node.Start, selection.Node.End);
+    }
+
+    private static void FocusSourceSpan(TextBox editor, int start, int end)
+    {
+        var text = editor.Text ?? string.Empty;
+        start = Math.Clamp(start, 0, text.Length);
+        end = Math.Clamp(end, start, text.Length);
+        editor.Focus();
+        editor.CaretIndex = start;
+        editor.SelectionStart = start;
+        editor.SelectionEnd = end;
+        if (text.Length > 0)
+        {
+            try
+            {
+                editor.ScrollToLine(ConfigTextNavigator.LineAt(text, start) - 1);
+            }
+            catch (ArgumentOutOfRangeException)
+            {
+                // Some text layouts omit a trailing empty line. Selection
+                // remains correct even if that line is not scrollable.
+            }
+        }
+    }
+
     private async void SaveWorkspaceZip_Click(object? sender, RoutedEventArgs e)
     {
         if (DataContext is not MainWindowViewModel viewModel || !viewModel.HasWorkspaceFiles)

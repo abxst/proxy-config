@@ -151,11 +151,12 @@ module/version details remain non-blocking advisories.
 **Acceptance:** golden generator tests for each supported engine or a
 documented engine-specific exclusion.
 
-### M11 — Visual/raw editor experience
+### M11 — Visual/raw editor experience (v0.21, in progress)
 
 - [ ] Multi-preset composer with navigable project/include tree.
 - [ ] Registry-backed typed property panels for supported directive families.
-- [ ] Syntax highlighting, completion, navigation and scalable diff hunks.
+- [x] Raw text find-next with wrap-around, line jump and source-span navigation from a selected AST node.
+- [ ] Syntax highlighting, rich completion and scalable diff hunks.
 - [ ] Drag/drop and command palette with guarded structural edits.
 - [ ] Per-block redirect, upstream, logging and authorization controls.
 

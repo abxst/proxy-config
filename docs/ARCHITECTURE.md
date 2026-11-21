@@ -97,6 +97,12 @@ line-based comparison against the initial imported source before export.
 
 ## Cross-parent editing and static routes
 
+The import editor's find-next, one-based line jump and AST-to-source commands
+use `ConfigTextNavigator` and Avalonia `TextBox` selection/caret APIs. These
+methods read only the current source text, handle CRLF/LF and UTF-16 offsets,
+and wrap raw text search at EOF. An AST source jump is refused if the imported
+text has changed since Parse, avoiding stale offsets.
+
 `ConfigBlockEditor.MoveToParent` removes a selected syntax span, reparses,
 finds the destination node in the new snapshot, and inserts the moved fragment
 with relative indentation. Moves into self/descendant nodes or those likely

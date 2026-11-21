@@ -27,6 +27,7 @@
 - Import UTF-8, UTF-16 or UTF-32 files (BOM-aware) through Avalonia's open dialog; export individual files and ZIP workspaces using their preserved encodings.
 - Build a multi-file full-project scaffold from valid generated snippets, including root config, NGINX HTTP/Stream includes, MIME/FastCGI support and Apache VirtualHost Listen declarations.
 - Queue multiple immutable presets in the generator composer; export numeric-prefixed include files to preserve user-selected order, with an exact duplicate HTTP host guard.
+- Navigate raw source through case-insensitive find-next, one-based line jump and selected AST spans without modifying the imported text.
 
 ## Explicit limitations
 

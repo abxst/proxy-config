@@ -244,6 +244,8 @@ public sealed class MainWindowViewModel : ObservableObject
     public bool IsStreamProxy => _page == EditorPage.StreamProxy;
     public bool IsHostPreset => IsReverseProxy || IsRedirect;
     public bool IsImport => _page == EditorPage.Import;
+    public bool IsImportedAstCurrent => _importedDocument is not null &&
+        _importedDocument.Text == ImportText;
     public bool IsGenerator => !IsExplorer && !IsImport;
     public bool IsHttpGenerator => IsStaticSite || IsHostPreset || IsLoadBalancer || IsFastCgi;
     public bool IsNginxEngine => SelectedEngine == ServerEngine.Nginx;
