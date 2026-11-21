@@ -234,6 +234,26 @@ public static partial class ConfigBlockEditor
             ? selected : FindParent(document, selected, out _);
     }
 
+    /// <summary>
+    /// An NGINX server belongs to the HTTP family only when directly under
+    /// the http block, or when supplied as a standalone http-context include.
+    /// Stream/mail server blocks must never receive HTTP route directives.
+    /// </summary>
+    public static bool IsHttpVirtualHost(
+        ConfigSyntaxDocument document, ConfigSyntaxNode? candidate)
+    {
+        if (candidate is null || candidate.Kind != ConfigNodeKind.Block ||
+            !candidate.IsClosed)
+            return false;
+        EnsureBelongs(document, candidate);
+        if (document.Engine == ServerEngine.Apache)
+            return candidate.Name.Equals("VirtualHost", StringComparison.OrdinalIgnoreCase);
+        if (candidate.Name != "server")
+            return false;
+        var parent = FindParent(document, candidate, out _);
+        return parent is null || parent.Name == "http";
+    }
+
     private static ConfigSyntaxDocument Insert(
         ConfigSyntaxDocument document, ConfigSyntaxNode? parent, string fragment)
     {

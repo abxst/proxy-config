@@ -128,6 +128,8 @@ public sealed class MainWindowViewModel : ObservableObject
         AddWorkspaceFileCommand = new RelayCommand(AddWorkspaceFile);
         MoveNodeToTargetCommand = new RelayCommand(MoveNodeToTarget);
         AddStaticRouteCommand = new RelayCommand(AddStaticRouteToSelection);
+        AddProxyRouteCommand = new RelayCommand(AddProxyRouteToSelection);
+        AddPhpHandlerCommand = new RelayCommand(AddPhpHandlerToSelection);
         MoveToWorkspaceFileCommand = new RelayCommand(MoveToWorkspaceFile);
         UndoWorkspaceTransferCommand = new RelayCommand(UndoWorkspaceTransfer);
         RefreshExplorer();
@@ -159,6 +161,8 @@ public sealed class MainWindowViewModel : ObservableObject
     public IRelayCommand AddWorkspaceFileCommand { get; }
     public IRelayCommand MoveNodeToTargetCommand { get; }
     public IRelayCommand AddStaticRouteCommand { get; }
+    public IRelayCommand AddProxyRouteCommand { get; }
+    public IRelayCommand AddPhpHandlerCommand { get; }
     public IRelayCommand MoveToWorkspaceFileCommand { get; }
     public IRelayCommand UndoWorkspaceTransferCommand { get; }
     public ObservableCollection<ConfigNodeListItem> ImportedNodes { get; } = [];
@@ -1420,11 +1424,9 @@ public sealed class MainWindowViewModel : ObservableObject
             return;
         var parent = ConfigBlockEditor.GetInsertionScope(
             _importedDocument!, SelectedImportNode?.Node);
-        var hostName = SelectedEngine == ServerEngine.Nginx ? "server" : "VirtualHost";
-        if (parent?.Kind != ConfigNodeKind.Block ||
-            !parent.Name.Equals(hostName, StringComparison.OrdinalIgnoreCase))
+        if (!ConfigBlockEditor.IsHttpVirtualHost(_importedDocument!, parent))
         {
-            ImportDiagnostics = $"Select an existing {hostName} block before adding a static route.";
+            ImportDiagnostics = "Select an HTTP server / VirtualHost (not an NGINX stream/mail server).";
             return;
         }
         var options = new StaticSiteOptions
@@ -1466,6 +1468,81 @@ public sealed class MainWindowViewModel : ObservableObject
             .Where(text => text.Length > 0);
         var routeBody = string.Join(Environment.NewLine, snippets);
         ApplyEditorOperation(doc => ConfigBlockEditor.InsertGeneratedSnippet(doc, parent, routeBody));
+    }
+
+    private ConfigSyntaxNode? SelectedHttpRouteHost()
+    {
+        if (!IsImportSnapshotCurrent())
+            return null;
+        var host = ConfigBlockEditor.GetInsertionScope(
+            _importedDocument!, SelectedImportNode?.Node);
+        if (ConfigBlockEditor.IsHttpVirtualHost(_importedDocument!, host))
+            return host;
+        ImportDiagnostics = "Select an existing HTTP server / VirtualHost node first.";
+        return null;
+    }
+
+    private void AddProxyRouteToSelection()
+    {
+        var host = SelectedHttpRouteHost();
+        if (host is null)
+            return;
+        var requestHeaders = HttpHeaderParser.Parse(RequestHeadersText, out var requestErrors);
+        var responseHeaders = HttpHeaderParser.Parse(ResponseHeadersText, out var responseErrors);
+        var options = new HostConfigOptions
+        {
+            Engine = SelectedEngine,
+            Mode = HostConfigMode.ReverseProxy,
+            Domain = (Domain ?? string.Empty).Trim(),
+            ListenPort = ListenPort,
+            TargetPlatform = SelectedTargetPlatform,
+            UrlPath = (ProxyUrlPath ?? string.Empty).Trim(),
+            UpstreamUrl = (UpstreamUrl ?? string.Empty).Trim(),
+            StripPrefix = StripPrefix,
+            PreserveHost = PreserveHost,
+            WebSocket = WebSocket,
+            RequestHeaders = requestHeaders,
+            ResponseHeaders = responseHeaders
+        };
+        var errors = requestErrors.Concat(responseErrors)
+            .Concat(HostConfigValidator.Validate(options)).ToList();
+        if (errors.Count > 0)
+        {
+            ImportDiagnostics = string.Join(Environment.NewLine, errors);
+            return;
+        }
+        var snippet = SelectedEngine == ServerEngine.Nginx
+            ? NginxHostGenerator.GenerateReverseProxyRoute(options)
+            : ApacheHostGenerator.GenerateReverseProxyRoute(options);
+        ApplyEditorOperation(doc => ConfigBlockEditor.InsertGeneratedSnippet(doc, host, snippet));
+    }
+
+    private void AddPhpHandlerToSelection()
+    {
+        var host = SelectedHttpRouteHost();
+        if (host is null)
+            return;
+        var options = new FastCgiOptions
+        {
+            Engine = SelectedEngine,
+            Domain = (Domain ?? string.Empty).Trim(),
+            ListenPort = ListenPort,
+            TargetPlatform = SelectedTargetPlatform,
+            DocumentRoot = (StaticDirectory ?? string.Empty).Trim(),
+            FpmEndpoint = (FpmEndpoint ?? string.Empty).Trim(),
+            IndexFiles = (PhpIndexFiles ?? string.Empty).Split([' ', ',', ';'],
+                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        };
+        var errors = FastCgiValidator.Validate(options);
+        if (errors.Count > 0)
+        {
+            ImportDiagnostics = string.Join(Environment.NewLine, errors);
+            return;
+        }
+        var snippet = SelectedEngine == ServerEngine.Nginx
+            ? NginxFastCgiGenerator.GenerateHandlerRoute(options)
+            : ApacheFastCgiGenerator.GenerateHandlerRoute(options);
+        ApplyEditorOperation(doc => ConfigBlockEditor.InsertGeneratedSnippet(doc, host, snippet));
     }
 
     private void UndoEdit()

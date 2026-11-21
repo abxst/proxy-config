@@ -1,11 +1,30 @@
 using System.Text;
 using ProxyConfig.Core.Models;
+using ProxyConfig.Core.Syntax;
 using ProxyConfig.Core.Validation;
 
 namespace ProxyConfig.Nginx;
 
 public static class NginxHostGenerator
 {
+    /// <summary>Build only the HTTP location so it can be inserted into an existing host.</summary>
+    public static string GenerateReverseProxyRoute(HostConfigOptions options)
+    {
+        if (options.Engine != ServerEngine.Nginx || options.Mode != HostConfigMode.ReverseProxy)
+            throw new ArgumentException("An NGINX reverse-proxy preset is required.", nameof(options));
+        var generated = ConfigSyntaxDocument.Parse(ServerEngine.Nginx,
+            Generate(options with { EnableTls = false }));
+        var location = generated.VirtualHosts.Single().Children.Single(n =>
+            n.Kind == ConfigNodeKind.Block && n.Name == "location");
+        var snippet = generated.GetText(location).Trim();
+        if (options.ResponseHeaders.Count == 0)
+            return snippet;
+        var brace = snippet.LastIndexOf('}');
+        var headers = string.Join("", options.ResponseHeaders.Select(h =>
+            $"    add_header {h.Name} {Quote(h.Value)} always;\n"));
+        return snippet.Insert(brace, headers);
+    }
+
     public static string Generate(HostConfigOptions options)
     {
         var errors = HostConfigValidator.Validate(options);

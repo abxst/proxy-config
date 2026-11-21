@@ -1,11 +1,28 @@
 using System.Text;
 using ProxyConfig.Core.Models;
+using ProxyConfig.Core.Syntax;
 using ProxyConfig.Core.Validation;
 
 namespace ProxyConfig.Apache;
 
 public static class ApacheHostGenerator
 {
+    /// <summary>Extract a validated proxy route and related directives, without a second VirtualHost.</summary>
+    public static string GenerateReverseProxyRoute(HostConfigOptions options)
+    {
+        if (options.Engine != ServerEngine.Apache || options.Mode != HostConfigMode.ReverseProxy)
+            throw new ArgumentException("An Apache reverse-proxy preset is required.", nameof(options));
+        var generated = ConfigSyntaxDocument.Parse(ServerEngine.Apache,
+            Generate(options with { EnableTls = false }));
+        string[] routeNames = ["ProxyRequests", "ProxyPreserveHost", "ProxyPass",
+            "ProxyPassReverse", "RequestHeader", "Header"];
+        return string.Join(Environment.NewLine, generated.VirtualHosts.Single().Children
+            .Where(n => n.Kind == ConfigNodeKind.Directive &&
+                routeNames.Contains(n.Name, StringComparer.OrdinalIgnoreCase))
+            .Select(generated.GetText)
+            .Select(x => x.Trim()));
+    }
+
     public static string Generate(HostConfigOptions options)
     {
         var errors = HostConfigValidator.Validate(options);

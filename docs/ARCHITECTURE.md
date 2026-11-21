@@ -114,6 +114,18 @@ this preset to avoid corrupting the destination HTTP context. An NGINX build
 with the stream module is required. Neither preset attempts to inspect
 installed modules or to deploy any configuration.
 
+## Inserting proxy routes and PHP handlers into existing hosts
+
+The Import / Editor Proxy route and PHP handler tabs reuse the same validated
+generator models, extract generated location/directive fragments and apply
+them through the text-preserving `InsertGeneratedSnippet` operation.
+`IsHttpVirtualHost` requires an actual Apache VirtualHost or NGINX `server`
+at the root/`http` level; it refuses `server` nodes in `stream` or `mail`
+blocks. A PHP handler's NGINX location has its own document root to avoid
+modifying the existing server root. Apache keeps the existing VirtualHost
+DocumentRoot. Route conflict detection and installed-module validation remain
+out of scope; check generated directives before using them on a real server.
+
 ## Export
 
 The Static Website screen generates native config text with a validation gate. The UI saves UTF-8 text using Avalonia's platform SaveFilePicker; it does not write to a running server.

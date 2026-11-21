@@ -1,11 +1,21 @@
 using System.Text;
 using ProxyConfig.Core.Models;
+using ProxyConfig.Core.Syntax;
 using ProxyConfig.Core.Validation;
 
 namespace ProxyConfig.Apache;
 
 public static class ApacheFastCgiGenerator
 {
+    /// <summary>The imported VirtualHost keeps its existing DocumentRoot.</summary>
+    public static string GenerateHandlerRoute(FastCgiOptions options)
+    {
+        var generated = ConfigSyntaxDocument.Parse(ServerEngine.Apache, Generate(options));
+        var handler = generated.VirtualHosts.Single().Children.Single(n =>
+            n.Kind == ConfigNodeKind.Block && n.Name.Equals("FilesMatch", StringComparison.OrdinalIgnoreCase));
+        return generated.GetText(handler).Trim();
+    }
+
     public static string Generate(FastCgiOptions options)
     {
         if (options.Engine != ServerEngine.Apache)
