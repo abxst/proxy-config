@@ -30,19 +30,22 @@
         <StackPanel Spacing="6">
           <TextBlock Margin="8,4,8,12" FontSize="13" FontWeight="SemiBold" Opacity="0.65" Text="CONFIGURATION" />
           <Button HorizontalContentAlignment="Left" Command="{Binding ShowStaticSiteCommand}" Content="Static Website" />
+          <Button HorizontalContentAlignment="Left" Command="{Binding ShowReverseProxyCommand}" Content="Reverse Proxy" />
+          <Button HorizontalContentAlignment="Left" Command="{Binding ShowRedirectCommand}" Content="HTTP Redirect" />
           <Button HorizontalContentAlignment="Left" Command="{Binding ShowExplorerCommand}" Content="Directive Explorer" />
           <Separator Margin="0,12" />
           <TextBlock Margin="8,0" TextWrapping="Wrap" Opacity="0.58"
-                     Text="Explore documented directives offline. The generator currently supports the Static Website preset." />
+                     Text="Generate static sites, reverse proxies and redirects. Browse the public directive catalog offline." />
           <Separator Margin="0,12" />
           <TextBlock Margin="8,0" TextWrapping="Wrap" Opacity="0.55" FontSize="12"
-                     Text="Virtual hosts, reverse proxy, TLS, AST editor and config import are planned for later milestones." />
+                     Text="Load balancing, full typed directive editing, AST parser and config import are planned next." />
         </StackPanel>
       </Border>
 
-      <Grid Grid.Column="1" IsVisible="{Binding IsStaticSite}" ColumnDefinitions="420,*">
+      <Grid Grid.Column="1" IsVisible="{Binding IsGenerator}" ColumnDefinitions="420,*">
         <ScrollViewer Grid.Column="0">
           <StackPanel Margin="24" Spacing="14">
+            <StackPanel Spacing="14" IsVisible="{Binding IsStaticSite}">
             <StackPanel Margin="0,0,0,8">
               <TextBlock FontSize="24" FontWeight="SemiBold" Text="Serve Static Files" />
               <TextBlock Margin="0,4,0,0" Opacity="0.65" TextWrapping="Wrap"
@@ -65,6 +68,67 @@
             <CheckBox IsChecked="{Binding DirectoryListing}" Content="Enable directory listing" />
             <CheckBox IsChecked="{Binding CacheStaticAssets}" Content="Cache static assets for 30 days" />
             <CheckBox IsChecked="{Binding Compression}" Content="Enable response compression" />
+            </StackPanel>
+
+            <StackPanel Spacing="14" IsVisible="{Binding IsHostPreset}">
+              <TextBlock IsVisible="{Binding IsReverseProxy}" FontSize="24" FontWeight="SemiBold" Text="Reverse Proxy" />
+              <TextBlock IsVisible="{Binding IsRedirect}" FontSize="24" FontWeight="SemiBold" Text="HTTP Redirect" />
+              <TextBlock Opacity="0.6" FontSize="12" TextWrapping="Wrap"
+                         Text="Generate an NGINX server or Apache VirtualHost snippet. No deployment is performed." />
+
+              <TextBlock FontWeight="SemiBold" Text="Domain" />
+              <TextBox Text="{Binding Domain, UpdateSourceTrigger=PropertyChanged}" PlaceholderText="example.com" />
+              <TextBlock FontWeight="SemiBold" Text="Listen port" />
+              <NumericUpDown Minimum="1" Maximum="65535" Value="{Binding ListenPort}" />
+              <CheckBox Content="Enable TLS" IsChecked="{Binding EnableTls}" />
+
+              <StackPanel Spacing="10" IsVisible="{Binding EnableTls}">
+                <TextBlock FontWeight="SemiBold" Text="Certificate file on target server" />
+                <TextBox Text="{Binding CertificateFile, UpdateSourceTrigger=PropertyChanged}"
+                         PlaceholderText="/etc/ssl/certs/example.pem" />
+                <TextBlock FontWeight="SemiBold" Text="Private key on target server" />
+                <TextBox Text="{Binding PrivateKeyFile, UpdateSourceTrigger=PropertyChanged}"
+                         PlaceholderText="/etc/ssl/private/example.key" />
+              </StackPanel>
+
+              <StackPanel Spacing="12" IsVisible="{Binding IsReverseProxy}">
+                <Separator />
+                <TextBlock FontWeight="SemiBold" Text="External URL path" />
+                <TextBox Text="{Binding ProxyUrlPath, UpdateSourceTrigger=PropertyChanged}" PlaceholderText="/api/" />
+                <TextBlock FontWeight="SemiBold" Text="Upstream origin" />
+                <TextBox Text="{Binding UpstreamUrl, UpdateSourceTrigger=PropertyChanged}"
+                         PlaceholderText="http://127.0.0.1:3000" />
+                <TextBlock FontSize="12" TextWrapping="Wrap" Opacity="0.6"
+                           Text="HTTP(S) origin only; no path, query, credentials or fragment." />
+                <CheckBox Content="Strip the external path prefix" IsChecked="{Binding StripPrefix}" />
+                <CheckBox Content="Preserve incoming Host header" IsChecked="{Binding PreserveHost}" />
+                <CheckBox Content="WebSocket upgrade (Apache 2.4.47+)" IsChecked="{Binding WebSocket}" />
+                <TextBlock FontWeight="SemiBold" Text="Additional upstream request headers" />
+                <TextBox Text="{Binding RequestHeadersText, UpdateSourceTrigger=PropertyChanged}"
+                         AcceptsReturn="True" MinHeight="80" TextWrapping="Wrap"
+                         PlaceholderText="X-Service: proxy-config" />
+                <TextBlock FontSize="12" Opacity="0.6" Text="One Name: value pair per line." />
+              </StackPanel>
+
+              <StackPanel Spacing="12" IsVisible="{Binding IsRedirect}">
+                <Separator />
+                <TextBlock FontWeight="SemiBold" Text="Redirect target origin" />
+                <TextBox Text="{Binding RedirectDestination, UpdateSourceTrigger=PropertyChanged}"
+                         PlaceholderText="https://new.example.com" />
+                <TextBlock FontSize="12" Opacity="0.6" TextWrapping="Wrap"
+                           Text="Preserves the original request path and query. Enter origin only (no path/query)." />
+                <TextBlock FontWeight="SemiBold" Text="HTTP redirect status" />
+                <ComboBox ItemsSource="{Binding RedirectStatuses}" SelectedItem="{Binding RedirectStatus}" />
+              </StackPanel>
+
+              <Separator />
+              <TextBlock FontWeight="SemiBold" Text="Additional response headers" />
+              <TextBox Text="{Binding ResponseHeadersText, UpdateSourceTrigger=PropertyChanged}"
+                       AcceptsReturn="True" MinHeight="80" TextWrapping="Wrap"
+                       PlaceholderText="X-Content-Type-Options: nosniff" />
+              <TextBlock FontSize="12" Opacity="0.6" Text="One Name: value pair per line. Apache requires mod_headers." />
+            </StackPanel>
+
             <Border IsVisible="{Binding ValidationMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
                     Padding="12" CornerRadius="8" Background="#22FF4500">
               <TextBlock Foreground="OrangeRed" TextWrapping="Wrap" Text="{Binding ValidationMessage}" />

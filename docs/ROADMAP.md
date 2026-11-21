@@ -16,6 +16,7 @@
 - Offline search, detail panel, source URLs and catalog tests
 - `.conf` export from the Static Website preset
 - Build/test both Debug and Release and publish tagged GitHub Releases
+- Follow SemVer tags for automated pre-releases and tagged stable releases
 
 **Still required before the catalog can drive arbitrary config editing:** exact edition/platform/version support audit; module availability metadata; argument grammar.
 
@@ -45,8 +46,10 @@
 
 Static Website is the first implemented preset. Continue with:
 
-- Redirect / virtual hosts
-- Reverse proxy / WebSocket / gRPC
+- [x] Redirect / virtual-host snippets
+- [x] Reverse proxy / WebSocket
+- [x] Basic TLS paths and custom headers for host presets
+- [ ] gRPC proxying and advanced timeout/buffering
 - Load balancer
 - FastCGI/PHP
 - TLS

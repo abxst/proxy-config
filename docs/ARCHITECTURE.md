@@ -27,6 +27,19 @@ Desktop UI -> typed project models -> validation -> NGINX / Apache generators.
 
 The Static Website screen generates native config text with a validation gate. The UI saves UTF-8 text using Avalonia's platform SaveFilePicker; it does not write to a running server.
 
+## Host presets
+
+The shared `HostConfigOptions` model and `HostConfigValidator` drive two more presets:
+
+- Reverse Proxy: mounted route, upstream HTTP(S) origin, strip/retain prefix, Host forwarding, WebSocket, request/response headers
+- Redirect: HTTP status 301/302/307/308, preserving request URI; target is an HTTP(S) origin
+
+Both presets optionally generate TLS certificate/key directives. They deliberately reject untrusted newlines, invalid hostnames and unsupported URL shapes. The NGINX generator returns an `http`-context `server` snippet, while Apache returns a `VirtualHost` snippet; neither is a full global server configuration.
+
+Apache proxying requires `mod_proxy` + `mod_proxy_http`; WebSocket upgrade requires HTTP Server 2.4.47+, TLS requires `mod_ssl`, and custom headers require `mod_headers`. The generator adds explanatory comments; it does not attempt to load modules automatically.
+
+`VERSION` and the CI SemVer validation gate control automatic `vX.Y.Z-debug.N.N` pre-releases and manually tagged `vX.Y.Z` releases.
+
 ## Round-trip requirement
 
 When import support lands, unknown or not-yet-typed directives must be retained as raw AST nodes. Importing and exporting must never silently delete input that the current registry does not understand.

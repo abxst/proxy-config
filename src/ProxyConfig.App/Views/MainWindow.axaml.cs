@@ -4,7 +4,6 @@ using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Platform.Storage;
 using ProxyConfig.App.ViewModels;
-using ProxyConfig.Core.Models;
 
 namespace ProxyConfig.App.Views;
 
@@ -27,8 +26,7 @@ public partial class MainWindow : Window
             var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
             {
                 Title = "Export server configuration",
-                SuggestedFileName = viewModel.SelectedEngine == ServerEngine.Nginx
-                    ? "nginx-site.conf" : "apache-vhost.conf",
+                SuggestedFileName = viewModel.SuggestedFileName,
                 DefaultExtension = "conf",
                 FileTypeChoices =
                 [
