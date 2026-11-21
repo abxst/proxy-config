@@ -20,13 +20,16 @@
 
 **Still required before the catalog can drive arbitrary config editing:** exact edition/platform/version support audit; module availability metadata; argument grammar.
 
-## M2 — AST and parsers
+## M2 — AST and parsers ✅ (structural foundation)
 
-- Trivia-preserving AST
-- NGINX lexer/parser/generator
-- Apache lexer/parser/generator
-- Unknown/raw nodes
-- Include graph and circular include protection
+- [x] Span/trivia-preserving AST and exact text round trip
+- [x] NGINX structural lexer/parser and selected-node replacement
+- [x] Apache structural parser, nested containers and continuation lines
+- [x] Unknown/raw nodes retained
+- [x] Include graph over explicitly supplied files, wildcards and cycle protection
+- [x] Import/editor UI, multi-VirtualHost discovery and appending generated hosts
+- [ ] Full directive-level grammar and semantic validation (M3)
+- [ ] Project-level multi-file import, Apache ServerRoot resolution in UI and encoding audit
 
 ## M3 — Validation
 
@@ -41,6 +44,10 @@
 - Registry-driven property editor
 - Search and command palette
 - Undo/redo
+- **Multi-block (required):** multiple server/VirtualHost blocks in one file or project
+- **Nested multi-block:** multiple NGINX `location`/`upstream`/`map` and Apache `<Directory>`/`<Location>`/`<Proxy>` blocks with context-aware containment
+- Add, remove, duplicate, reorder and move blocks without dropping unknown directives or comments
+- Per-block presets and independent settings for multiple hosts/routes/upstreams
 
 ## M5 — Presets
 

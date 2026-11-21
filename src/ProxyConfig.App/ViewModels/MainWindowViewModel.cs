@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.Input;
 using ProxyConfig.Apache;
 using ProxyConfig.Core.Models;
 using ProxyConfig.Core.Registry;
+using ProxyConfig.Core.Syntax;
 using ProxyConfig.Core.Validation;
 using ProxyConfig.Nginx;
 
@@ -11,7 +12,7 @@ namespace ProxyConfig.App.ViewModels;
 
 public sealed class MainWindowViewModel : ObservableObject
 {
-    private enum EditorPage { StaticSite, ReverseProxy, Redirect, Explorer }
+    private enum EditorPage { StaticSite, ReverseProxy, Redirect, Explorer, Import }
 
     private readonly DirectiveCatalog _catalog = DirectiveCatalog.LoadEmbedded();
     private ServerEngine _selectedEngine = ServerEngine.Nginx;
@@ -38,6 +39,15 @@ public sealed class MainWindowViewModel : ObservableObject
     private int _redirectStatus = 301;
     private string _requestHeadersText = string.Empty;
     private string _responseHeadersText = string.Empty;
+    private ConfigSyntaxDocument? _importedDocument;
+    private string _importText = string.Empty;
+    private string _importFileName = string.Empty;
+    private string _importDiagnostics = string.Empty;
+    private string _importSummary = string.Empty;
+    private ConfigNodeListItem? _selectedImportNode;
+    private string _nodeReplacementText = string.Empty;
+    private string _lastGeneratedText = string.Empty;
+    private ServerEngine _lastGeneratedEngine;
     private string _searchText = string.Empty;
     private bool _includeVariables;
     private DocumentedDirective? _selectedDirective;
@@ -52,6 +62,14 @@ public sealed class MainWindowViewModel : ObservableObject
         ShowReverseProxyCommand = new RelayCommand(() => SelectPage(EditorPage.ReverseProxy));
         ShowRedirectCommand = new RelayCommand(() => SelectPage(EditorPage.Redirect));
         ShowExplorerCommand = new RelayCommand(() => SelectPage(EditorPage.Explorer));
+        ShowImportCommand = new RelayCommand(() =>
+        {
+            SelectPage(EditorPage.Import);
+            ParseImported();
+        });
+        ParseImportedCommand = new RelayCommand(ParseImported);
+        ApplyNodeEditCommand = new RelayCommand(ApplyNodeEdit);
+        AppendGeneratedHostCommand = new RelayCommand(AppendGeneratedHost);
         RefreshExplorer();
         Regenerate();
     }
@@ -60,6 +78,11 @@ public sealed class MainWindowViewModel : ObservableObject
     public IRelayCommand ShowReverseProxyCommand { get; }
     public IRelayCommand ShowRedirectCommand { get; }
     public IRelayCommand ShowExplorerCommand { get; }
+    public IRelayCommand ShowImportCommand { get; }
+    public IRelayCommand ParseImportedCommand { get; }
+    public IRelayCommand ApplyNodeEditCommand { get; }
+    public IRelayCommand AppendGeneratedHostCommand { get; }
+    public ObservableCollection<ConfigNodeListItem> ImportedNodes { get; } = [];
     public ObservableCollection<DocumentedDirective> SearchResults { get; } = [];
     public IReadOnlyList<ServerEngine> ServerEngines { get; } = Enum.GetValues<ServerEngine>();
     public IReadOnlyList<TargetPlatform> TargetPlatforms { get; } = Enum.GetValues<TargetPlatform>();
@@ -70,12 +93,74 @@ public sealed class MainWindowViewModel : ObservableObject
     public bool IsReverseProxy => _page == EditorPage.ReverseProxy;
     public bool IsRedirect => _page == EditorPage.Redirect;
     public bool IsHostPreset => IsReverseProxy || IsRedirect;
-    public bool IsGenerator => !IsExplorer;
+    public bool IsImport => _page == EditorPage.Import;
+    public bool IsGenerator => !IsExplorer && !IsImport;
 
-    public string SuggestedFileName =>
-        $"{(SelectedEngine == ServerEngine.Nginx ? "nginx" : "apache")}-" +
-        (_page == EditorPage.ReverseProxy ? "proxy" :
-         _page == EditorPage.Redirect ? "redirect" : "site") + ".conf";
+    public string SuggestedFileName => IsImport && ImportFileName.Length > 0
+        ? ImportFileName
+        : $"{(SelectedEngine == ServerEngine.Nginx ? "nginx" : "apache")}-" +
+          (_page == EditorPage.ReverseProxy ? "proxy" :
+           _page == EditorPage.Redirect ? "redirect" :
+           _page == EditorPage.Import ? "imported" : "site") + ".conf";
+
+    public string ImportText
+    {
+        get => _importText;
+        set
+        {
+            if (SetProperty(ref _importText, value))
+            {
+                OnPropertyChanged(nameof(CanExport));
+                if (_importedDocument is not null && _importedDocument.Text != value)
+                    ImportDiagnostics = "Text changed. Press Parse to refresh the structure.";
+            }
+        }
+    }
+
+    public string ImportFileName
+    {
+        get => _importFileName;
+        set
+        {
+            if (SetProperty(ref _importFileName, value))
+                OnPropertyChanged(nameof(SuggestedFileName));
+        }
+    }
+
+    public string ImportDiagnostics
+    {
+        get => _importDiagnostics;
+        private set => SetProperty(ref _importDiagnostics, value);
+    }
+
+    public string ImportSummary
+    {
+        get => _importSummary;
+        private set => SetProperty(ref _importSummary, value);
+    }
+
+    public ConfigNodeListItem? SelectedImportNode
+    {
+        get => _selectedImportNode;
+        set
+        {
+            if (SetProperty(ref _selectedImportNode, value))
+                NodeReplacementText = value is not null && _importedDocument is not null
+                    ? _importedDocument.GetText(value.Node) : string.Empty;
+        }
+    }
+
+    public string NodeReplacementText
+    {
+        get => _nodeReplacementText;
+        set => SetProperty(ref _nodeReplacementText, value);
+    }
+
+    public bool CanAppendGeneratedHost =>
+        _lastGeneratedText.Length > 0 && _lastGeneratedEngine == SelectedEngine &&
+        string.IsNullOrEmpty(ValidationMessage);
+
+    public string ExportText => IsImport ? ImportText : Preview;
 
     public string UpstreamUrl
     {
@@ -188,7 +273,9 @@ public sealed class MainWindowViewModel : ObservableObject
             {
                 Regenerate();
                 RefreshExplorer();
+                if (IsImport) ParseImported();
                 OnPropertyChanged(nameof(SuggestedFileName));
+                OnPropertyChanged(nameof(CanAppendGeneratedHost));
             }
         }
     }
@@ -295,7 +382,9 @@ public sealed class MainWindowViewModel : ObservableObject
         private set => SetProperty(ref _validationMessage, value);
     }
 
-    public bool CanExport => string.IsNullOrEmpty(ValidationMessage) && !string.IsNullOrWhiteSpace(Preview);
+    public bool CanExport => IsImport
+        ? !string.IsNullOrWhiteSpace(ImportText)
+        : string.IsNullOrEmpty(ValidationMessage) && !string.IsNullOrWhiteSpace(Preview);
 
     public string ExportStatus
     {
@@ -325,12 +414,18 @@ public sealed class MainWindowViewModel : ObservableObject
         OnPropertyChanged(nameof(IsRedirect));
         OnPropertyChanged(nameof(IsHostPreset));
         OnPropertyChanged(nameof(IsGenerator));
+        OnPropertyChanged(nameof(IsImport));
         OnPropertyChanged(nameof(SuggestedFileName));
+        OnPropertyChanged(nameof(CanExport));
+        OnPropertyChanged(nameof(CanAppendGeneratedHost));
         Regenerate();
     }
 
     private void Regenerate()
     {
+        if (IsImport || IsExplorer)
+            return;
+
         ExportStatus = string.Empty;
         if (IsHostPreset)
         {
@@ -369,9 +464,11 @@ public sealed class MainWindowViewModel : ObservableObject
                 ServerEngine.Apache => ApacheStaticSiteGenerator.Generate(options),
                 _ => throw new ArgumentOutOfRangeException()
             };
+            RememberGeneratedPreview();
         }
 
         OnPropertyChanged(nameof(CanExport));
+        OnPropertyChanged(nameof(CanAppendGeneratedHost));
     }
 
     private void RegenerateHost()
@@ -407,7 +504,70 @@ public sealed class MainWindowViewModel : ObservableObject
             : SelectedEngine == ServerEngine.Nginx
                 ? NginxHostGenerator.Generate(options)
                 : ApacheHostGenerator.Generate(options);
+        if (errors.Count == 0)
+            RememberGeneratedPreview();
 
         OnPropertyChanged(nameof(CanExport));
+        OnPropertyChanged(nameof(CanAppendGeneratedHost));
+    }
+
+    private void RememberGeneratedPreview()
+    {
+        _lastGeneratedText = Preview;
+        _lastGeneratedEngine = SelectedEngine;
+        OnPropertyChanged(nameof(CanAppendGeneratedHost));
+    }
+
+    public void ParseImported()
+    {
+        _importedDocument = ConfigSyntaxDocument.Parse(SelectedEngine, ImportText);
+        SelectedImportNode = null;
+        ImportedNodes.Clear();
+
+        void AppendNodes(IEnumerable<ConfigSyntaxNode> nodes, int depth)
+        {
+            foreach (var node in nodes)
+            {
+                if (node.Kind == ConfigNodeKind.Trivia)
+                    continue;
+                ImportedNodes.Add(new ConfigNodeListItem(node, depth));
+                AppendNodes(node.Children, depth + 1);
+            }
+        }
+
+        AppendNodes(_importedDocument.Nodes, 0);
+        SelectedImportNode = ImportedNodes.FirstOrDefault();
+        ImportSummary = $"{_importedDocument.VirtualHosts.Count} Virtual Hosts · " +
+            $"{ImportedNodes.Count} syntax nodes · " +
+            $"{_importedDocument.Diagnostics.Count} diagnostics";
+        ImportDiagnostics = string.Join(Environment.NewLine,
+            _importedDocument.Diagnostics.Take(8).Select(d => $"At {d.Offset}: {d.Message}"));
+    }
+
+    private void ApplyNodeEdit()
+    {
+        if (_importedDocument is null || SelectedImportNode is null)
+            return;
+        if (_importedDocument.Text != ImportText)
+        {
+            ImportDiagnostics = "Press Parse before editing a selected node.";
+            return;
+        }
+
+        var updated = _importedDocument.ReplaceNode(SelectedImportNode.Node, NodeReplacementText);
+        ImportText = updated.Text;
+        ParseImported();
+    }
+
+    private void AppendGeneratedHost()
+    {
+        if (!CanAppendGeneratedHost)
+        {
+            ImportDiagnostics = "Generate a valid preset for the selected server first.";
+            return;
+        }
+        var current = ConfigSyntaxDocument.Parse(SelectedEngine, ImportText);
+        ImportText = current.AppendVirtualHost(_lastGeneratedText).Text;
+        ParseImported();
     }
 }
