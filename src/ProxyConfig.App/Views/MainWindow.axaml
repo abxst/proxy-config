@@ -232,6 +232,28 @@
               </StackPanel>
             </Expander>
 
+            <Expander Header="Full project ZIP options">
+              <StackPanel Margin="8" Spacing="9">
+                <TextBlock FontSize="12" TextWrapping="Wrap" Opacity="0.7"
+                           Text="Create a main config and included snippet files. Paths refer to the target server; optional modules must already be installed." />
+                <StackPanel Spacing="5" IsVisible="{Binding IsNginxEngine}">
+                  <TextBlock Text="NGINX worker connections" />
+                  <NumericUpDown Minimum="1" Maximum="1048576"
+                                 Value="{Binding ProjectNginxWorkerConnections}" />
+                  <TextBlock FontSize="11" Opacity="0.6" TextWrapping="Wrap"
+                             Text="The ZIP includes nginx.conf and local mime.types / fastcgi_params where needed." />
+                </StackPanel>
+                <StackPanel Spacing="5" IsVisible="{Binding IsApacheEngine}">
+                  <TextBlock Text="Apache ServerRoot (target server)" />
+                  <TextBox Text="{Binding ProjectApacheServerRoot, UpdateSourceTrigger=PropertyChanged}" />
+                  <TextBlock Text="Optional installed-module include path" />
+                  <TextBox Text="{Binding ProjectApacheModuleInclude, UpdateSourceTrigger=PropertyChanged}" />
+                  <TextBlock FontSize="11" Opacity="0.6" TextWrapping="Wrap"
+                             Text="Edit this path for your Apache installation. MPM and module loading are target-specific." />
+                </StackPanel>
+              </StackPanel>
+            </Expander>
+
             <Border IsVisible="{Binding ValidationMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
                     Padding="12" CornerRadius="8" Background="#22FF4500">
               <TextBlock Foreground="OrangeRed" TextWrapping="Wrap" Text="{Binding ValidationMessage}" />
@@ -241,14 +263,16 @@
 
         <Grid Grid.Column="1" RowDefinitions="Auto,*">
           <Border Padding="20,14" BorderBrush="#30000000" BorderThickness="1,0,0,1">
-            <Grid ColumnDefinitions="*,Auto">
+            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
               <StackPanel>
                 <TextBlock FontSize="17" FontWeight="SemiBold" Text="Live configuration preview" />
-                <TextBlock Margin="0,3,0,0" Opacity="0.6" Text="Save the generated text as a .conf file." />
+                <TextBlock Margin="0,3,0,0" Opacity="0.6" Text="Export a snippet or a multi-file main configuration scaffold." />
                 <TextBlock Margin="0,3,0,0" FontSize="12" Foreground="SeaGreen" Text="{Binding ExportStatus}" />
               </StackPanel>
               <Button Grid.Column="1" VerticalAlignment="Center" IsEnabled="{Binding CanExport}"
                       Click="SaveConfig_Click" Content="Export .conf" />
+              <Button Grid.Column="2" VerticalAlignment="Center" IsEnabled="{Binding CanExport}"
+                      Click="SaveFullProjectZip_Click" Content="Full project ZIP" />
             </Grid>
           </Border>
           <TextBox Grid.Row="1" Margin="16" Padding="16" AcceptsReturn="True" IsReadOnly="True"

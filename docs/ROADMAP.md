@@ -101,3 +101,69 @@ Static Website is the first implemented preset. Continue with:
 - [x] Strict UTF-8/UTF-16/UTF-32 BOM round trips, reject invalid bytes (v0.8)
 - [ ] Continuous structured fuzzing with sanitizers and real-world corpus
 - [ ] Golden corpus from official examples and large config performance benchmarks
+
+## Large delivery milestones (v0.16 → v1.0)
+
+M0–M7 describe feature areas. These larger milestones define independently
+testable increments, each with one PR and green Windows Debug/Release CI.
+`VERSION` follows SemVer; each successful push to `main` publishes tagged
+Debug and Release archives.
+
+### M8 — Full configuration project engine (v0.16, in progress)
+
+- [x] Generate a root `nginx.conf` or `httpd.conf` with separate include files.
+- [x] Accept multiple named host fragments in the core project builder.
+- [x] Put NGINX HTTP snippets in `conf.d`; unwrap standalone Stream into `stream.d`.
+- [x] Package local MIME types and required FastCGI parameters without reading server files.
+- [x] Derive Apache `Listen` from VirtualHosts; expose `ServerRoot` and optional module include.
+- [x] Validate names, sizes, structural syntax and broad placement; use the existing safe ZIP writer.
+- [ ] Compose and reorder multiple generated presets from the visual UI.
+- [ ] Additional NGINX global contexts and Apache main-scope options with target profiles.
+
+**Acceptance:** no double-nested contexts, no missing generated include,
+deterministic ZIP paths, and green Windows Debug/Release build + tests.
+Projects still require installed modules and server-specific runtime paths.
+
+### M9 — Semantic validation and compatibility
+
+- [ ] Cross-file listener, host and route conflict diagnostics with exact source locations.
+- [ ] Explicit target profiles for version, OS, module and edition.
+- [ ] Module dependencies and version checks grounded in upstream documentation.
+- [ ] Typed argument schemas for high-impact directives, raw fallback for others.
+- [ ] Static-site exposure, proxy trust and TLS policy review profiles.
+
+**Acceptance:** diagnostics include file/line/context/reason/source; ambiguous
+module/version details remain non-blocking advisories.
+
+### M10 — Advanced proxy, security and observability
+
+- [ ] Per-route buffering, timeouts and retry profiles where supported.
+- [ ] Apache HTTP/2 and gRPC upstream compatibility checks.
+- [ ] Advanced TLS cipher/ALPN/session/OCSP configuration.
+- [ ] Structured logging, log destinations and trusted real-client IP chains.
+- [ ] Rich authorization policies and NGINX Mail proxy where supported.
+
+**Acceptance:** golden generator tests for each supported engine or a
+documented engine-specific exclusion.
+
+### M11 — Visual/raw editor experience
+
+- [ ] Multi-preset composer with navigable project/include tree.
+- [ ] Registry-backed typed property panels for supported directive families.
+- [ ] Syntax highlighting, completion, navigation and scalable diff hunks.
+- [ ] Drag/drop and command palette with guarded structural edits.
+- [ ] Per-block redirect, upstream, logging and authorization controls.
+
+**Acceptance:** preserve unknown syntax/comments; undo/redo and ZIP round
+trips remain lossless for supported encodings.
+
+### M12 — Hardening and stable release
+
+- [ ] Audit the documented directive catalog against pinned upstream snapshots.
+- [ ] Real-world config corpus and structured fuzzing in CI.
+- [ ] Large-project benchmarks, resource limits and archive security tests.
+- [ ] Windows packaging smoke tests, distribution signing strategy and accessibility.
+- [ ] User guide, changelog, support matrix and `v1.0.0` release gate.
+
+**Acceptance:** green Windows Debug/Release builds, verified SemVer tag,
+both release ZIP assets; no deployment or server writes.

@@ -23,6 +23,9 @@ public sealed class MainWindowViewModel : ObservableObject
     private WorkspaceFileItem? _selectedRootWorkspaceFile;
     private string _includeSummary = string.Empty;
     private string _apacheServerRoot = string.Empty;
+    private string _projectApacheServerRoot = "/etc/httpd";
+    private string _projectApacheModuleInclude = "conf.modules.d/*.conf";
+    private int _projectNginxWorkerConnections = 1024;
     private string _diffPreview = string.Empty;
     private string _nodeSearchText = string.Empty;
     private string _newWorkspacePath = "nginx.conf";
@@ -219,6 +222,26 @@ public sealed class MainWindowViewModel : ObservableObject
     public bool IsImport => _page == EditorPage.Import;
     public bool IsGenerator => !IsExplorer && !IsImport;
     public bool IsHttpGenerator => IsStaticSite || IsHostPreset || IsLoadBalancer || IsFastCgi;
+    public bool IsNginxEngine => SelectedEngine == ServerEngine.Nginx;
+    public bool IsApacheEngine => SelectedEngine == ServerEngine.Apache;
+
+    public string ProjectApacheServerRoot
+    {
+        get => _projectApacheServerRoot;
+        set => SetProperty(ref _projectApacheServerRoot, value);
+    }
+
+    public string ProjectApacheModuleInclude
+    {
+        get => _projectApacheModuleInclude;
+        set => SetProperty(ref _projectApacheModuleInclude, value);
+    }
+
+    public int ProjectNginxWorkerConnections
+    {
+        get => _projectNginxWorkerConnections;
+        set => SetProperty(ref _projectNginxWorkerConnections, value);
+    }
 
     public string SuggestedFileName => IsImport && ImportFileName.Length > 0
         ? ImportFileName.Replace('\\', '/').Split('/').Last()
@@ -778,6 +801,8 @@ public sealed class MainWindowViewModel : ObservableObject
                 RefreshCrossFileTargets();
                 OnPropertyChanged(nameof(SuggestedFileName));
                 OnPropertyChanged(nameof(CanAppendGeneratedHost));
+                OnPropertyChanged(nameof(IsNginxEngine));
+                OnPropertyChanged(nameof(IsApacheEngine));
             }
         }
     }
@@ -1323,6 +1348,24 @@ public sealed class MainWindowViewModel : ObservableObject
             snapshot.AddOrUpdate(file.Path, ReferenceEquals(file, SelectedWorkspaceFile)
                 ? ImportText : file.Text, file.Encoding);
         return snapshot;
+    }
+
+    public ConfigWorkspace CreateFullProjectSnapshot()
+    {
+        if (!IsGenerator || !CanExport)
+            throw new InvalidOperationException("Generate a valid preset before exporting its project.");
+
+        return ConfigProjectScaffolder.Create(
+            new ConfigProjectScaffolder.Options
+            {
+                Engine = SelectedEngine,
+                NginxWorkerConnections = ProjectNginxWorkerConnections,
+                ApacheServerRoot = ProjectApacheServerRoot,
+                ApacheModuleInclude = ProjectApacheModuleInclude
+            },
+            [new ConfigProjectScaffolder.Fragment(
+                SuggestedFileName.Replace(".conf", string.Empty, StringComparison.Ordinal),
+                Preview)]);
     }
 
     private void RebuildIncludeGraph()

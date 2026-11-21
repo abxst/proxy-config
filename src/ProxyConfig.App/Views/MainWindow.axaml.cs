@@ -146,6 +146,46 @@ public partial class MainWindow : Window
         }
     }
 
+    private async void SaveFullProjectZip_Click(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel viewModel || !viewModel.IsGenerator ||
+            !viewModel.CanExport)
+            return;
+
+        try
+        {
+            // Validate before opening the picker, so incompatible context or path
+            // settings do not prompt the user to overwrite an existing file.
+            var project = viewModel.CreateFullProjectSnapshot();
+            var target = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            {
+                Title = "Export full NGINX / Apache project scaffold",
+                SuggestedFileName = "proxy-config-full-project.zip",
+                DefaultExtension = "zip",
+                FileTypeChoices =
+                [
+                    new FilePickerFileType("Configuration project") { Patterns = ["*.zip"] }
+                ]
+            });
+            if (target is null)
+                return;
+
+            await using var stream = await target.OpenWriteAsync();
+            if (stream.CanSeek)
+            {
+                stream.SetLength(0);
+                stream.Position = 0;
+            }
+            project.WriteZip(stream);
+            await stream.FlushAsync();
+            viewModel.ExportStatus = $"Saved full project ZIP: {target.Name}";
+        }
+        catch (Exception ex)
+        {
+            viewModel.ExportStatus = $"Full project export failed: {ex.Message}";
+        }
+    }
+
     private async void SaveConfig_Click(object? sender, RoutedEventArgs e)
     {
         if (DataContext is not MainWindowViewModel viewModel || !viewModel.CanExport)
