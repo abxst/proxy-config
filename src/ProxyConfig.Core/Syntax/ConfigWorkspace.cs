@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using System.Text;
 using ProxyConfig.Core.Models;
 
 namespace ProxyConfig.Core.Syntax;

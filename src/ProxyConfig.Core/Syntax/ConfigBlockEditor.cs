@@ -48,7 +48,8 @@ public static partial class ConfigBlockEditor
     public static ConfigSyntaxDocument InsertGeneratedSnippet(
         ConfigSyntaxDocument document, ConfigSyntaxNode? parent, string snippet)
     {
-        var parsed = ConfigSyntaxDocument.Parse(document.Engine, snippet ?? string.Empty);
+        snippet ??= string.Empty;
+        var parsed = ConfigSyntaxDocument.Parse(document.Engine, snippet);
         if (parsed.Diagnostics.Count > 0 || parsed.Nodes.Any(n => n.Kind == ConfigNodeKind.Raw) ||
             !parsed.Nodes.Any(n => n.Kind is ConfigNodeKind.Block or ConfigNodeKind.Directive))
             throw new ArgumentException("Generated snippet is not structurally valid.", nameof(snippet));

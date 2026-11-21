@@ -26,15 +26,15 @@ public static class ConfigFileCodec
     {
         var encodingKind = ConfigEncodingKind.Utf8;
         var prefix = 0;
-        if (bytes.StartsWith([0x00, 0x00, 0xFE, 0xFF]))
+        if (HasBom(bytes, 0x00, 0x00, 0xFE, 0xFF))
             (encodingKind, prefix) = (ConfigEncodingKind.Utf32BigEndian, 4);
-        else if (bytes.StartsWith([0xFF, 0xFE, 0x00, 0x00]))
+        else if (HasBom(bytes, 0xFF, 0xFE, 0x00, 0x00))
             (encodingKind, prefix) = (ConfigEncodingKind.Utf32LittleEndian, 4);
-        else if (bytes.StartsWith([0xEF, 0xBB, 0xBF]))
+        else if (HasBom(bytes, 0xEF, 0xBB, 0xBF))
             (encodingKind, prefix) = (ConfigEncodingKind.Utf8Bom, 3);
-        else if (bytes.StartsWith([0xFE, 0xFF]))
+        else if (HasBom(bytes, 0xFE, 0xFF))
             (encodingKind, prefix) = (ConfigEncodingKind.Utf16BigEndian, 2);
-        else if (bytes.StartsWith([0xFF, 0xFE]))
+        else if (HasBom(bytes, 0xFF, 0xFE))
             (encodingKind, prefix) = (ConfigEncodingKind.Utf16LittleEndian, 2);
 
         try
@@ -58,6 +58,9 @@ public static class ConfigFileCodec
         body.CopyTo(bytes, preamble.Length);
         return bytes;
     }
+
+    private static bool HasBom(ReadOnlySpan<byte> bytes, params byte[] marker) =>
+        bytes.Length >= marker.Length && bytes[..marker.Length].SequenceEqual(marker);
 
     private static Encoding GetEncoding(ConfigEncodingKind kind) => kind switch
     {
