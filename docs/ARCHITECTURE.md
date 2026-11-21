@@ -221,8 +221,16 @@ existing matching location. They reject potentially conflicting direct rules
 rather than silently overwriting other security settings. Network inputs
 are strict dotted-decimal IPv4 or IPv6 with optional CIDR; alternate numeric
 IPv4 spellings are rejected. Paths refer to the target server. These policies
-do not manage log rotation, trusted upstream client IP reconstruction, or
-deployed authorization/module state.
+do not manage log rotation or deployed authorization/module state.
+
+The separate `TrustedProxyOptions` / `TrustedProxyValidator` model accepts only
+1–64 explicit, canonical IPv4/IPv6/CIDR proxy sources for `X-Forwarded-For`.
+NGINX emits `set_real_ip_from`, `real_ip_header` and `real_ip_recursive` inside
+the HTTP server; Apache emits `RemoteIPHeader` / `RemoteIPTrustedProxy` inside
+the VirtualHost. An unrestricted `0.0.0.0/0` or `::/0` trusted network is
+refused. Imported-host insertion rejects overlapping existing real-IP rules.
+This requires optional `ngx_http_realip_module` or `mod_remoteip`; it does not
+install modules or verify whether an upstream proxy sanitizes input headers.
 
 ## Export
 

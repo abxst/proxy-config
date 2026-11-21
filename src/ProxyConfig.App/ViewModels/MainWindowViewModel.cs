@@ -74,6 +74,8 @@ public sealed class MainWindowViewModel : ObservableObject
     private IpAccessMode _ipAccessMode = IpAccessMode.AllowList;
     private string _ipAccessEntriesText = "192.168.1.0/24";
     private string _ipAccessUrlPath = "/";
+    private bool _enableTrustedProxies;
+    private string _trustedProxyEntriesText = "10.0.0.0/8";
     private string _proxyUrlPath = "/";
     private bool _stripPrefix = true;
     private bool _preserveHost = true;
@@ -155,6 +157,7 @@ public sealed class MainWindowViewModel : ObservableObject
         AddGrpcRouteCommand = new RelayCommand(AddGrpcRouteToSelection);
         AddHostLoggingCommand = new RelayCommand(AddHostLoggingToSelection);
         AddIpPolicyCommand = new RelayCommand(AddIpPolicyToSelection);
+        AddTrustedProxiesCommand = new RelayCommand(AddTrustedProxiesToSelection);
         MoveToWorkspaceFileCommand = new RelayCommand(MoveToWorkspaceFile);
         UndoWorkspaceTransferCommand = new RelayCommand(UndoWorkspaceTransfer);
         QueueProjectPresetCommand = new RelayCommand(QueueProjectPreset);
@@ -195,6 +198,7 @@ public sealed class MainWindowViewModel : ObservableObject
     public IRelayCommand AddGrpcRouteCommand { get; }
     public IRelayCommand AddHostLoggingCommand { get; }
     public IRelayCommand AddIpPolicyCommand { get; }
+    public IRelayCommand AddTrustedProxiesCommand { get; }
     public IRelayCommand MoveToWorkspaceFileCommand { get; }
     public IRelayCommand UndoWorkspaceTransferCommand { get; }
     public IRelayCommand QueueProjectPresetCommand { get; }
@@ -723,6 +727,18 @@ public sealed class MainWindowViewModel : ObservableObject
         set { if (SetProperty(ref _ipAccessUrlPath, value)) Regenerate(); }
     }
 
+    public bool EnableTrustedProxies
+    {
+        get => _enableTrustedProxies;
+        set { if (SetProperty(ref _enableTrustedProxies, value)) Regenerate(); }
+    }
+
+    public string TrustedProxyEntriesText
+    {
+        get => _trustedProxyEntriesText;
+        set { if (SetProperty(ref _trustedProxyEntriesText, value)) Regenerate(); }
+    }
+
     public string ProxyUrlPath
     {
         get => _proxyUrlPath;
@@ -1240,17 +1256,19 @@ public sealed class MainWindowViewModel : ObservableObject
 
     private void RememberGeneratedPreview()
     {
-        if (IsHttpGenerator && (EnableHostLogging || EnableIpPolicy))
+        if (IsHttpGenerator && (EnableHostLogging || EnableIpPolicy || EnableTrustedProxies))
         {
             var errors = new List<string>();
             if (EnableHostLogging)
                 errors.AddRange(HostLoggingValidator.Validate(BuildLoggingOptions()));
             if (EnableIpPolicy)
                 errors.AddRange(IpAccessValidator.Validate(BuildIpOptions()));
+            if (EnableTrustedProxies)
+                errors.AddRange(TrustedProxyValidator.Validate(BuildTrustedProxyOptions()));
             if (errors.Count > 0)
             {
                 ValidationMessage = string.Join(Environment.NewLine, errors);
-                Preview = "# Fix logging/access policy validation errors before generation.";
+                Preview = "# Fix logging/access/trusted proxy validation errors before generation.";
                 _lastGeneratedText = string.Empty;
                 OnPropertyChanged(nameof(CanAppendGeneratedHost));
                 return;
@@ -1282,6 +1300,15 @@ public sealed class MainWindowViewModel : ObservableObject
                     ? NginxHostPolicyGenerator.GenerateIpAccess(BuildIpOptions())
                     : ApacheHostPolicyGenerator.GenerateIpAccess(BuildIpOptions());
                 generated = ConfigBlockEditor.InsertGeneratedSnippet(generated, host, access);
+                host = generated.VirtualHosts.Single(n =>
+                    ConfigBlockEditor.IsHttpVirtualHost(generated, n));
+            }
+            if (EnableTrustedProxies)
+            {
+                var trusted = SelectedEngine == ServerEngine.Nginx
+                    ? NginxHostPolicyGenerator.GenerateTrustedProxies(BuildTrustedProxyOptions())
+                    : ApacheHostPolicyGenerator.GenerateTrustedProxies(BuildTrustedProxyOptions());
+                generated = ConfigBlockEditor.InsertGeneratedSnippet(generated, host, trusted);
             }
             Preview = generated.Text;
         }
@@ -1305,6 +1332,11 @@ public sealed class MainWindowViewModel : ObservableObject
         Mode = SelectedIpAccessMode,
         UrlPath = (IpAccessUrlPath ?? string.Empty).Trim(),
         Entries = IpAccessValidator.ParseEntries(IpAccessEntriesText)
+    };
+
+    private TrustedProxyOptions BuildTrustedProxyOptions() => new()
+    {
+        TrustedProxyAddresses = IpAccessValidator.ParseEntries(TrustedProxyEntriesText)
     };
 
     public void ImportFiles(IEnumerable<ConfigImportedFile> files)
@@ -2051,6 +2083,32 @@ public sealed class MainWindowViewModel : ObservableObject
             }
         }
         ApplyEditorOperation(doc => ConfigBlockEditor.InsertGeneratedSnippet(doc, scope, snippet));
+    }
+
+    private void AddTrustedProxiesToSelection()
+    {
+        var host = SelectedHttpRouteHost();
+        if (host is null)
+            return;
+        var options = BuildTrustedProxyOptions();
+        var errors = TrustedProxyValidator.Validate(options);
+        if (errors.Count != 0)
+        {
+            ImportDiagnostics = string.Join(Environment.NewLine, errors);
+            return;
+        }
+        string[] existing = SelectedEngine == ServerEngine.Nginx
+            ? ["set_real_ip_from", "real_ip_header", "real_ip_recursive"]
+            : ["RemoteIPHeader", "RemoteIPTrustedProxy", "RemoteIPInternalProxy"];
+        if (host.Children.Any(node => existing.Contains(node.Name, StringComparer.OrdinalIgnoreCase)))
+        {
+            ImportDiagnostics = "This HTTP host already has a trusted-client-IP policy. Edit it directly before adding another.";
+            return;
+        }
+        var snippet = SelectedEngine == ServerEngine.Nginx
+            ? NginxHostPolicyGenerator.GenerateTrustedProxies(options)
+            : ApacheHostPolicyGenerator.GenerateTrustedProxies(options);
+        ApplyEditorOperation(doc => ConfigBlockEditor.InsertGeneratedSnippet(doc, host, snippet));
     }
 
     private void UndoEdit()

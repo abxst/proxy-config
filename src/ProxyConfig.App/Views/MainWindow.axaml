@@ -229,6 +229,16 @@
                   <TextBlock FontSize="11" TextWrapping="Wrap" Opacity="0.65"
                              Text="NGINX rules apply at the server level; Apache uses a Location URL scope. Confirm effects of inherited authorization." />
                 </StackPanel>
+                <Separator />
+                <CheckBox Content="Trust forwarded client IP only from listed reverse proxies"
+                          IsChecked="{Binding EnableTrustedProxies}" />
+                <StackPanel Spacing="7" IsVisible="{Binding EnableTrustedProxies}">
+                  <TextBlock FontSize="12" Text="Trusted proxy IP/CIDR networks (one per line)" />
+                  <TextBox Text="{Binding TrustedProxyEntriesText, UpdateSourceTrigger=PropertyChanged}"
+                           AcceptsReturn="True" MinHeight="65" TextWrapping="NoWrap" />
+                  <TextBlock FontSize="11" Opacity="0.6" TextWrapping="Wrap"
+                             Text="Uses X-Forwarded-For. Requires ngx_http_realip_module or Apache mod_remoteip. Unrestricted /0 trust is refused." />
+                </StackPanel>
               </StackPanel>
             </Expander>
 
@@ -690,6 +700,15 @@
                   <TextBox Text="{Binding IpAccessUrlPath, UpdateSourceTrigger=PropertyChanged}"
                            PlaceholderText="Apache Location URL path (if inserting into VirtualHost)" />
                   <Button Command="{Binding AddIpPolicyCommand}" Content="Insert IP access policy" />
+                  <Separator />
+                  <TextBlock FontWeight="SemiBold" Text="Trusted reverse-proxy client IP" />
+                  <TextBlock FontSize="12" Opacity="0.7" TextWrapping="Wrap"
+                             Text="Only IP/CIDR networks you explicitly trust may supply X-Forwarded-For. Select an HTTP host before inserting." />
+                  <TextBox Text="{Binding TrustedProxyEntriesText, UpdateSourceTrigger=PropertyChanged}"
+                           AcceptsReturn="True" MinHeight="65" TextWrapping="NoWrap"
+                           PlaceholderText="10.0.0.0/8" />
+                  <Button Command="{Binding AddTrustedProxiesCommand}"
+                          Content="Insert trusted proxy IP policy" />
                 </StackPanel>
               </ScrollViewer>
             </TabItem>

@@ -34,6 +34,9 @@ public static class ConfigTargetCompatibility
     private static readonly Rule NginxFastCgi = new(
         "NGINX FastCGI", "ngx_http_fastcgi_module", null,
         "https://nginx.org/en/docs/http/ngx_http_fastcgi_module.html");
+    private static readonly Rule NginxRealIp = new(
+        "NGINX trusted client IP", "ngx_http_realip_module", null,
+        "https://nginx.org/en/docs/http/ngx_http_realip_module.html");
     private static readonly Rule ApacheFastCgi = new(
         "Apache FastCGI proxy", "mod_proxy_fcgi", new Version(2, 4, 10),
         "https://httpd.apache.org/docs/2.4/mod/mod_proxy_fcgi.html");
@@ -46,6 +49,9 @@ public static class ConfigTargetCompatibility
     private static readonly Rule ApacheSsl = new(
         "Apache TLS", "mod_ssl", null,
         "https://httpd.apache.org/docs/2.4/mod/mod_ssl.html");
+    private static readonly Rule ApacheRemoteIp = new(
+        "Apache trusted client IP", "mod_remoteip", null,
+        "https://httpd.apache.org/docs/2.4/mod/mod_remoteip.html");
 
     public static IReadOnlyList<Finding> Analyze(
         ConfigWorkspace workspace, ServerEngine engine, string rootFile, Profile profile,
@@ -107,7 +113,8 @@ public static class ConfigTargetCompatibility
         required.StartsWith("mod_", StringComparison.Ordinal) &&
             modules.Contains(required[4..] + "_module") ||
         required == "ngx_stream_core_module" &&
-            (modules.Contains("ngx_stream_module") || modules.Contains("--with-stream"));
+            (modules.Contains("ngx_stream_module") || modules.Contains("--with-stream")) ||
+        required == "ngx_http_realip_module" && modules.Contains("--with-http_realip_module");
 
     private static Rule? SelectRule(ConfigSyntaxDocument doc, ConfigSyntaxNode node)
     {
@@ -120,6 +127,7 @@ public static class ConfigTargetCompatibility
                 {
                     "grpc_pass" => NginxGrpc,
                     "fastcgi_pass" => NginxFastCgi,
+                    "set_real_ip_from" or "real_ip_header" => NginxRealIp,
                     _ => null
                 };
             return null;
@@ -132,6 +140,9 @@ public static class ConfigTargetCompatibility
             return ApacheProxy;
         if (node.Name.Equals("SSLEngine", StringComparison.OrdinalIgnoreCase))
             return ApacheSsl;
+        if (node.Name.Equals("RemoteIPHeader", StringComparison.OrdinalIgnoreCase) ||
+            node.Name.Equals("RemoteIPTrustedProxy", StringComparison.OrdinalIgnoreCase))
+            return ApacheRemoteIp;
         if (node.Name.Equals("SetHandler", StringComparison.OrdinalIgnoreCase) &&
             doc.GetText(node).Contains("proxy:fcgi", StringComparison.OrdinalIgnoreCase))
             return ApacheFastCgi;
