@@ -70,7 +70,8 @@ Static Website is the first implemented preset. Continue with:
 - [x] Reverse proxy / WebSocket
 - [x] Basic TLS paths and custom headers for host presets
 - [x] HTTP load balancer (NGINX upstream round-robin/least_conn/ip_hash; Apache request-based balancer) (v0.9)
-- [ ] gRPC proxying and advanced timeout/buffering
+- [x] NGINX gRPC route insertion and upstream read/send timeouts (v0.14)
+- [ ] Apache HTTP/2 upstream proxying, per-route buffering controls and full gRPC compatibility audit
 - [x] FastCGI/PHP host preset for both engines (v0.10)
 - [x] Per-host PHP-FPM handler insertion into existing hosts (v0.11)
 - [x] Explicit TLS 1.2+1.3 / TLS 1.3-only protocol profiles and certificate paths (v0.12)

@@ -53,6 +53,11 @@ public sealed class MainWindowViewModel : ObservableObject
     private string _streamTarget = "127.0.0.1:9001";
     private bool _streamUdp;
     private int _streamTimeoutSeconds = 60;
+    private string _grpcUrlPath = "/grpc/";
+    private string _grpcUpstreamEndpoint = "127.0.0.1:50051";
+    private bool _grpcUpstreamTls;
+    private int _grpcReadTimeoutSeconds = 120;
+    private int _grpcSendTimeoutSeconds = 60;
     private string _proxyUrlPath = "/";
     private bool _stripPrefix = true;
     private bool _preserveHost = true;
@@ -131,6 +136,7 @@ public sealed class MainWindowViewModel : ObservableObject
         AddStaticRouteCommand = new RelayCommand(AddStaticRouteToSelection);
         AddProxyRouteCommand = new RelayCommand(AddProxyRouteToSelection);
         AddPhpHandlerCommand = new RelayCommand(AddPhpHandlerToSelection);
+        AddGrpcRouteCommand = new RelayCommand(AddGrpcRouteToSelection);
         MoveToWorkspaceFileCommand = new RelayCommand(MoveToWorkspaceFile);
         UndoWorkspaceTransferCommand = new RelayCommand(UndoWorkspaceTransfer);
         RefreshExplorer();
@@ -164,6 +170,7 @@ public sealed class MainWindowViewModel : ObservableObject
     public IRelayCommand AddStaticRouteCommand { get; }
     public IRelayCommand AddProxyRouteCommand { get; }
     public IRelayCommand AddPhpHandlerCommand { get; }
+    public IRelayCommand AddGrpcRouteCommand { get; }
     public IRelayCommand MoveToWorkspaceFileCommand { get; }
     public IRelayCommand UndoWorkspaceTransferCommand { get; }
     public ObservableCollection<ConfigNodeListItem> ImportedNodes { get; } = [];
@@ -545,6 +552,36 @@ public sealed class MainWindowViewModel : ObservableObject
     {
         get => _streamTimeoutSeconds;
         set { if (SetProperty(ref _streamTimeoutSeconds, value)) Regenerate(); }
+    }
+
+    public string GrpcUrlPath
+    {
+        get => _grpcUrlPath;
+        set => SetProperty(ref _grpcUrlPath, value);
+    }
+
+    public string GrpcUpstreamEndpoint
+    {
+        get => _grpcUpstreamEndpoint;
+        set => SetProperty(ref _grpcUpstreamEndpoint, value);
+    }
+
+    public bool GrpcUpstreamTls
+    {
+        get => _grpcUpstreamTls;
+        set => SetProperty(ref _grpcUpstreamTls, value);
+    }
+
+    public int GrpcReadTimeoutSeconds
+    {
+        get => _grpcReadTimeoutSeconds;
+        set => SetProperty(ref _grpcReadTimeoutSeconds, value);
+    }
+
+    public int GrpcSendTimeoutSeconds
+    {
+        get => _grpcSendTimeoutSeconds;
+        set => SetProperty(ref _grpcSendTimeoutSeconds, value);
     }
 
     public string ProxyUrlPath
@@ -1566,6 +1603,41 @@ public sealed class MainWindowViewModel : ObservableObject
         var snippet = SelectedEngine == ServerEngine.Nginx
             ? NginxFastCgiGenerator.GenerateHandlerRoute(options)
             : ApacheFastCgiGenerator.GenerateHandlerRoute(options);
+        var conflict = ConfigRouteConflictDetector.FindExactDuplicate(
+            _importedDocument!, host, snippet);
+        if (conflict is not null)
+        {
+            ImportDiagnostics = conflict;
+            return;
+        }
+        ApplyEditorOperation(doc => ConfigBlockEditor.InsertGeneratedSnippet(doc, host, snippet));
+    }
+
+    private void AddGrpcRouteToSelection()
+    {
+        if (SelectedEngine != ServerEngine.Nginx)
+        {
+            ImportDiagnostics = "This gRPC route generator supports NGINX only.";
+            return;
+        }
+        var host = SelectedHttpRouteHost();
+        if (host is null)
+            return;
+        var options = new GrpcRouteOptions
+        {
+            UrlPath = (GrpcUrlPath ?? string.Empty).Trim(),
+            UpstreamEndpoint = (GrpcUpstreamEndpoint ?? string.Empty).Trim(),
+            UpstreamTls = GrpcUpstreamTls,
+            ReadTimeoutSeconds = GrpcReadTimeoutSeconds,
+            SendTimeoutSeconds = GrpcSendTimeoutSeconds
+        };
+        var errors = GrpcRouteValidator.Validate(options);
+        if (errors.Count > 0)
+        {
+            ImportDiagnostics = string.Join(Environment.NewLine, errors);
+            return;
+        }
+        var snippet = NginxGrpcRouteGenerator.Generate(options);
         var conflict = ConfigRouteConflictDetector.FindExactDuplicate(
             _importedDocument!, host, snippet);
         if (conflict is not null)

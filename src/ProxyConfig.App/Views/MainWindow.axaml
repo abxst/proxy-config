@@ -533,6 +533,24 @@
                 </StackPanel>
               </ScrollViewer>
             </TabItem>
+            <TabItem Header="gRPC">
+              <ScrollViewer MaxHeight="275">
+                <StackPanel Margin="6,10,6,6" Spacing="8">
+                  <TextBlock FontSize="12" TextWrapping="Wrap" Opacity="0.7"
+                             Text="NGINX-only gRPC route. Select an HTTP server block. Its frontend listener must already enable HTTP/2; ngx_http_grpc_module and ngx_http_v2_module must be available." />
+                  <TextBox PlaceholderText="URL mount path, e.g. /grpc/"
+                           Text="{Binding GrpcUrlPath, UpdateSourceTrigger=PropertyChanged}" />
+                  <TextBox PlaceholderText="gRPC backend host:port"
+                           Text="{Binding GrpcUpstreamEndpoint, UpdateSourceTrigger=PropertyChanged}" />
+                  <CheckBox Content="TLS to upstream (grpcs://)" IsChecked="{Binding GrpcUpstreamTls}" />
+                  <TextBlock FontSize="12" Text="Read timeout, seconds" />
+                  <NumericUpDown Minimum="1" Maximum="3600" Value="{Binding GrpcReadTimeoutSeconds}" />
+                  <TextBlock FontSize="12" Text="Send timeout, seconds" />
+                  <NumericUpDown Minimum="1" Maximum="3600" Value="{Binding GrpcSendTimeoutSeconds}" />
+                  <Button Command="{Binding AddGrpcRouteCommand}" Content="Insert gRPC route into selected host" />
+                </StackPanel>
+              </ScrollViewer>
+            </TabItem>
           </TabControl>
           <ScrollViewer Grid.Row="5" MaxHeight="95">
             <StackPanel Spacing="4">
