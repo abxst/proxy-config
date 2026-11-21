@@ -41,6 +41,9 @@ public static class NginxHostGenerator
         {
             sb.AppendLine($"    ssl_certificate {QuotePath(options.CertificateFile, options.TargetPlatform)};");
             sb.AppendLine($"    ssl_certificate_key {QuotePath(options.PrivateKeyFile, options.TargetPlatform)};");
+            sb.AppendLine("    ssl_protocols " +
+                (options.TlsProtocolProfile == TlsProtocolProfile.Tls13Only
+                    ? "TLSv1.3;" : "TLSv1.2 TLSv1.3;"));
         }
 
         sb.AppendLine();

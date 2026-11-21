@@ -6,6 +6,12 @@ public enum HostConfigMode
     Redirect
 }
 
+public enum TlsProtocolProfile
+{
+    Tls12And13,
+    Tls13Only
+}
+
 public sealed record HttpHeader(string Name, string Value);
 
 /// <summary>
@@ -20,6 +26,7 @@ public sealed record HostConfigOptions
     public required string Domain { get; init; }
     public int ListenPort { get; init; } = 80;
     public bool EnableTls { get; init; }
+    public TlsProtocolProfile TlsProtocolProfile { get; init; } = TlsProtocolProfile.Tls12And13;
     public string CertificateFile { get; init; } = string.Empty;
     public string PrivateKeyFile { get; init; } = string.Empty;
 

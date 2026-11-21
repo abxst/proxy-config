@@ -58,6 +58,7 @@ public sealed class MainWindowViewModel : ObservableObject
     private bool _preserveHost = true;
     private bool _webSocket;
     private bool _enableTls;
+    private TlsProtocolProfile _tlsProtocolProfile = TlsProtocolProfile.Tls12And13;
     private string _certificateFile = string.Empty;
     private string _privateKeyFile = string.Empty;
     private string _redirectDestination = "https://example.org";
@@ -178,6 +179,8 @@ public sealed class MainWindowViewModel : ObservableObject
     public IReadOnlyList<ServerEngine> ServerEngines { get; } = Enum.GetValues<ServerEngine>();
     public IReadOnlyList<TargetPlatform> TargetPlatforms { get; } = Enum.GetValues<TargetPlatform>();
     public IReadOnlyList<int> RedirectStatuses { get; } = [301, 302, 307, 308];
+    public IReadOnlyList<TlsProtocolProfile> TlsProtocolProfiles { get; } =
+        Enum.GetValues<TlsProtocolProfile>();
     public IReadOnlyList<LoadBalancingMethod> BalancingMethods { get; } =
         Enum.GetValues<LoadBalancingMethod>();
 
@@ -574,6 +577,12 @@ public sealed class MainWindowViewModel : ObservableObject
         set { if (SetProperty(ref _enableTls, value)) Regenerate(); }
     }
 
+    public TlsProtocolProfile TlsProtocolProfile
+    {
+        get => _tlsProtocolProfile;
+        set { if (SetProperty(ref _tlsProtocolProfile, value)) Regenerate(); }
+    }
+
     public string CertificateFile
     {
         get => _certificateFile;
@@ -940,6 +949,7 @@ public sealed class MainWindowViewModel : ObservableObject
             Domain = (Domain ?? string.Empty).Trim(),
             ListenPort = ListenPort,
             EnableTls = EnableTls,
+            TlsProtocolProfile = TlsProtocolProfile,
             CertificateFile = (CertificateFile ?? string.Empty).Trim(),
             PrivateKeyFile = (PrivateKeyFile ?? string.Empty).Trim(),
             UrlPath = (ProxyUrlPath ?? string.Empty).Trim(),

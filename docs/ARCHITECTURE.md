@@ -126,6 +126,17 @@ modifying the existing server root. Apache keeps the existing VirtualHost
 DocumentRoot. Route conflict detection and installed-module validation remain
 out of scope; check generated directives before using them on a real server.
 
+## Explicit TLS protocol allowlists
+
+The host preset models have a small `TlsProtocolProfile` choice (TLS 1.2 +
+TLS 1.3, or TLS 1.3 only) when TLS is enabled. NGINX writes `ssl_protocols`
+and Apache writes `SSLProtocol`, alongside existing certificate/key paths.
+The presets do not claim compatibility with all deployed server and crypto
+library versions. In NGINX, `ssl_protocols` is applied when the TLS
+connection is negotiated; verify the default server's effective settings
+when several TLS Virtual Hosts share one listening socket. These profiles
+are only protocol allowlists, not complete cipher or PKI hardening policies.
+
 ## Export
 
 The Static Website screen generates native config text with a validation gate. The UI saves UTF-8 text using Avalonia's platform SaveFilePicker; it does not write to a running server.

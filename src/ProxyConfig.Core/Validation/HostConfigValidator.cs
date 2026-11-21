@@ -26,6 +26,8 @@ public static partial class HostConfigValidator
 
         if (options.EnableTls)
         {
+            if (!Enum.IsDefined(options.TlsProtocolProfile))
+                errors.Add("TLS protocol profile must be TLS 1.2 + 1.3 or TLS 1.3 only.");
             if (!SafePath(options.CertificateFile))
                 errors.Add("TLS certificate file path is required and must not contain control characters or quotes.");
             if (!SafePath(options.PrivateKeyFile))
