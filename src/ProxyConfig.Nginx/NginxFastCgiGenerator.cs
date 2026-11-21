@@ -1,11 +1,26 @@
 using System.Text;
 using ProxyConfig.Core.Models;
+using ProxyConfig.Core.Syntax;
 using ProxyConfig.Core.Validation;
 
 namespace ProxyConfig.Nginx;
 
 public static class NginxFastCgiGenerator
 {
+    /// <summary>Emit an independent PHP location to add inside an imported NGINX server.</summary>
+    public static string GenerateHandlerRoute(FastCgiOptions options)
+    {
+        var generated = ConfigSyntaxDocument.Parse(ServerEngine.Nginx, Generate(options));
+        var handler = generated.VirtualHosts.Single().Children.Single(n =>
+            n.Kind == ConfigNodeKind.Block && n.Name == "location" &&
+            generated.GetText(n).Contains("fastcgi_pass", StringComparison.Ordinal));
+        var snippet = generated.GetText(handler).Trim();
+        var opening = snippet.IndexOf('{');
+        var root = options.TargetPlatform == TargetPlatform.Windows
+            ? options.DocumentRoot.Replace('\\', '/') : options.DocumentRoot;
+        return snippet.Insert(opening + 1, "\n    root " + Quote(root) + ";");
+    }
+
     public static string Generate(FastCgiOptions options)
     {
         if (options.Engine != ServerEngine.Nginx)

@@ -13,6 +13,7 @@
 - Create an in-memory multi-file workspace through explicit file/folder selection or new-file commands, inspect include edges and missing dependencies, and export a safe ZIP containing the selected project files.
 - Show a bounded line-by-line diff from imported text, search nodes by name/kind, and infer simple enum/number/size argument forms from the catalog with raw fallback.
 - Relocate directives/blocks across parents within a document and insert built-in static route fragments into a selected existing host.
+- Insert reverse-proxy routes or PHP-FPM handlers into a selected existing HTTP host; refuse NGINX stream/mail server contexts.
 - Move syntax subtrees between explicitly imported files with an atomic two-document calculation and guarded one-level undo; retain Unicode file BOM/encoding on export.
 - Display narrow, non-blocking security review hints for explicitly enabled directory listing and version exposure settings; no automatic rewrites.
 - Identify Virtual Hosts and append another generated NGINX server (inside an existing `http` block when present) or Apache `VirtualHost`.

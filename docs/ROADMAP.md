@@ -57,7 +57,8 @@
 - [ ] Drag and drop and command palette
 - [x] Multi-file editor with explicit imports, independent edit histories and ZIP export (v0.6)
 - [x] Add static filesystem-serving route into a selected host with existing generator options (v0.7)
-- [ ] Per-block proxy/redirect/upstream forms (cross-file block moves implemented v0.8)
+- [x] Per-host HTTP reverse-proxy route insertion (v0.11)
+- [ ] Per-block redirect/upstream editing forms and conflict-aware routing
 
 ## M5 — Presets
 
@@ -69,7 +70,7 @@ Static Website is the first implemented preset. Continue with:
 - [x] HTTP load balancer (NGINX upstream round-robin/least_conn/ip_hash; Apache request-based balancer) (v0.9)
 - [ ] gRPC proxying and advanced timeout/buffering
 - [x] FastCGI/PHP host preset for both engines (v0.10)
-- [ ] Per-route FastCGI insertion into existing hosts
+- [x] Per-host PHP-FPM handler insertion into existing hosts (v0.11)
 - [ ] Advanced TLS profile and certificate options
 - [x] NGINX TCP/UDP stream forwarding preset (v0.10)
 - [ ] Mail proxy preset where supported
