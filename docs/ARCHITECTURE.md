@@ -40,6 +40,19 @@ The app cannot infer which modules, edition or version are installed on the
 target server. Runtime syntax checks against an actual server binary remain
 outside the scope of this offline-only app.
 
+`ConfigProjectAnalyzer` reports structural/include errors and **exact** duplicate
+HTTP hostname/listener bindings across reachable files, with file/line
+references. It does not infer wildcard route overlap or NGINX/Apache routing
+precedence; distinct listener addresses remain distinct. NGINX `stream`
+hosts are not interpreted as HTTP hosts.
+
+`ConfigTargetCompatibility` accepts an optional target version and an explicitly
+supplied module list. Selected upstream-documented minimum versions are
+checked for NGINX Stream/gRPC and Apache FastCGI/HTTP2, plus bounded module
+checks for proxy, FastCGI and TLS features. A blank module inventory means
+**unknown**, not that modules are unavailable. Findings do not block export
+or replace target-server syntax checks.
+
 ## Multi-file workspace and typed assistance
 
 `ConfigProjectScaffolder` takes one or more named, structurally valid generated

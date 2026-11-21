@@ -124,11 +124,14 @@ Debug and Release archives.
 deterministic ZIP paths, and green Windows Debug/Release build + tests.
 Projects still require installed modules and server-specific runtime paths.
 
-### M9 — Semantic validation and compatibility
+### M9 — Semantic validation and compatibility (v0.17, in progress)
 
-- [ ] Cross-file listener, host and route conflict diagnostics with exact source locations.
-- [ ] Explicit target profiles for version, OS, module and edition.
-- [ ] Module dependencies and version checks grounded in upstream documentation.
+- [x] Exact cross-file HTTP hostname/listener collisions with source locations; report structural/include issues.
+- [ ] Broad route/wildcard/regex conflict analysis with NGINX precedence and Apache rewrite semantics.
+- [x] Opt-in target version and installed-module list for a bounded, documented feature set.
+- [ ] Complete target profile with OS and edition capabilities.
+- [x] Documented minimum-version/module advisories for NGINX Stream/gRPC and Apache FastCGI/HTTP2.
+- [ ] Complete module dependency and version checks for the public directive inventory.
 - [ ] Typed argument schemas for high-impact directives, raw fallback for others.
 - [ ] Static-site exposure, proxy trust and TLS policy review profiles.
 

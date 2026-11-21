@@ -502,6 +502,35 @@
                 </ComboBox>
                 <TextBox PlaceholderText="Optional Apache ServerRoot (target path)"
                          Text="{Binding ApacheServerRoot, UpdateSourceTrigger=PropertyChanged}" />
+                <TextBlock FontSize="12" Text="Target server version (optional)" />
+                <TextBox PlaceholderText="NGINX 1.26.2 / Apache 2.4.62"
+                         Text="{Binding ProjectTargetVersion, UpdateSourceTrigger=PropertyChanged}" />
+                <CheckBox Content="Audit against an explicit installed-module list"
+                          IsChecked="{Binding AuditInstalledModules}" />
+                <TextBox AcceptsReturn="True" MinHeight="55" MaxHeight="90"
+                         Watermark="mod_proxy, mod_ssl... (one per line)"
+                         Text="{Binding ProjectInstalledModulesText, UpdateSourceTrigger=PropertyChanged}"
+                         IsEnabled="{Binding AuditInstalledModules}" />
+                <TextBlock FontSize="12" FontWeight="SemiBold"
+                           Text="Known module/version compatibility hints" />
+                <ListBox Height="78" ItemsSource="{Binding CompatibilityFindings}">
+                  <ListBox.ItemTemplate>
+                    <DataTemplate>
+                      <TextBlock FontSize="11" Foreground="DarkOrange" TextWrapping="Wrap"
+                                 Text="{Binding Display}" />
+                    </DataTemplate>
+                  </ListBox.ItemTemplate>
+                </ListBox>
+                <TextBlock FontSize="12" FontWeight="SemiBold"
+                           Text="Cross-file diagnostics (advisory)" />
+                <ListBox Height="85" ItemsSource="{Binding ProjectFindings}">
+                  <ListBox.ItemTemplate>
+                    <DataTemplate>
+                      <TextBlock FontSize="11" Foreground="DarkOrange" TextWrapping="Wrap"
+                                 Text="{Binding Display}" />
+                    </DataTemplate>
+                  </ListBox.ItemTemplate>
+                </ListBox>
                 <ListBox Height="78" ItemsSource="{Binding IncludeEntries}" />
                 <TextBlock FontSize="12" Text="Move selected AST node to another file" />
                 <ComboBox ItemsSource="{Binding WorkspaceFiles}"
