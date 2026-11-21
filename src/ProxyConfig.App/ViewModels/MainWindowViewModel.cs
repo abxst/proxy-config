@@ -22,6 +22,7 @@ public sealed class MainWindowViewModel : ObservableObject
     private string _diffPreview = string.Empty;
     private string _nodeSearchText = string.Empty;
     private string _newWorkspacePath = "nginx.conf";
+    private BlockTargetItem? _selectedMoveTarget;
     private ServerEngine _selectedEngine = ServerEngine.Nginx;
     private TargetPlatform _selectedTargetPlatform = TargetPlatform.Linux;
     private string _domain = "example.com";
@@ -104,6 +105,8 @@ public sealed class MainWindowViewModel : ObservableObject
         RedoEditCommand = new RelayCommand(RedoEdit);
         RemoveWorkspaceFileCommand = new RelayCommand(RemoveSelectedWorkspaceFile);
         AddWorkspaceFileCommand = new RelayCommand(AddWorkspaceFile);
+        MoveNodeToTargetCommand = new RelayCommand(MoveNodeToTarget);
+        AddStaticRouteCommand = new RelayCommand(AddStaticRouteToSelection);
         RefreshExplorer();
         RefreshDirectiveSuggestions();
         Regenerate();
@@ -128,12 +131,15 @@ public sealed class MainWindowViewModel : ObservableObject
     public IRelayCommand RedoEditCommand { get; }
     public IRelayCommand RemoveWorkspaceFileCommand { get; }
     public IRelayCommand AddWorkspaceFileCommand { get; }
+    public IRelayCommand MoveNodeToTargetCommand { get; }
+    public IRelayCommand AddStaticRouteCommand { get; }
     public ObservableCollection<ConfigNodeListItem> ImportedNodes { get; } = [];
     public ObservableCollection<DocumentedDirective> SearchResults { get; } = [];
     public ObservableCollection<DocumentedDirective> DirectiveSuggestions { get; } = [];
     public ObservableCollection<string> ArgumentChoices { get; } = [];
     public ObservableCollection<ConfigContextAnalyzer.Warning> ContextWarnings { get; } = [];
     public ObservableCollection<WorkspaceFileItem> WorkspaceFiles { get; } = [];
+    public ObservableCollection<BlockTargetItem> BlockTargets { get; } = [];
     public ObservableCollection<string> IncludeEntries { get; } = [];
     public IReadOnlyList<ServerEngine> ServerEngines { get; } = Enum.GetValues<ServerEngine>();
     public IReadOnlyList<TargetPlatform> TargetPlatforms { get; } = Enum.GetValues<TargetPlatform>();
@@ -182,6 +188,12 @@ public sealed class MainWindowViewModel : ObservableObject
 
     public bool HasWorkspaceFiles => WorkspaceFiles.Count > 0;
 
+    public BlockTargetItem? SelectedMoveTarget
+    {
+        get => _selectedMoveTarget;
+        set => SetProperty(ref _selectedMoveTarget, value);
+    }
+
     public WorkspaceFileItem? SelectedWorkspaceFile
     {
         get => _selectedWorkspaceFile;
@@ -209,6 +221,8 @@ public sealed class MainWindowViewModel : ObservableObject
                 ImportFileName = string.Empty;
                 ImportedNodes.Clear();
                 ContextWarnings.Clear();
+                BlockTargets.Clear();
+                SelectedMoveTarget = null;
                 NotifyHistory();
                 return;
             }
@@ -935,6 +949,11 @@ public sealed class MainWindowViewModel : ObservableObject
 
         _importedDocument = ConfigSyntaxDocument.Parse(SelectedEngine, ImportText);
         RebuildImportedNodes();
+        BlockTargets.Clear();
+        BlockTargets.Add(new BlockTargetItem(null, "Root / file scope"));
+        foreach (var block in _importedDocument.AllNodes.Where(n => n.Kind == ConfigNodeKind.Block))
+            BlockTargets.Add(new BlockTargetItem(block, $"{block.Name} @ offset {block.Start}"));
+        SelectedMoveTarget = BlockTargets.FirstOrDefault();
         ContextWarnings.Clear();
         foreach (var warning in ConfigContextAnalyzer.Analyze(_importedDocument, _catalog, ImportFileName))
             ContextWarnings.Add(warning);
@@ -1063,6 +1082,68 @@ public sealed class MainWindowViewModel : ObservableObject
     {
         if (SelectedImportNode?.Node is { } selected)
             ApplyEditorOperation(doc => ConfigBlockEditor.Move(doc, selected, direction));
+    }
+
+    private void MoveNodeToTarget()
+    {
+        if (SelectedImportNode?.Node is not { } selected || SelectedMoveTarget is null)
+            return;
+        ApplyEditorOperation(doc => ConfigBlockEditor.MoveToParent(
+            doc, selected, SelectedMoveTarget.Node));
+    }
+
+    private void AddStaticRouteToSelection()
+    {
+        if (!IsImportSnapshotCurrent())
+            return;
+        var parent = ConfigBlockEditor.GetInsertionScope(
+            _importedDocument!, SelectedImportNode?.Node);
+        var hostName = SelectedEngine == ServerEngine.Nginx ? "server" : "VirtualHost";
+        if (parent?.Kind != ConfigNodeKind.Block ||
+            !parent.Name.Equals(hostName, StringComparison.OrdinalIgnoreCase))
+        {
+            ImportDiagnostics = $"Select an existing {hostName} block before adding a static route.";
+            return;
+        }
+        var options = new StaticSiteOptions
+        {
+            Engine = SelectedEngine,
+            TargetPlatform = SelectedTargetPlatform,
+            Domain = (Domain ?? string.Empty).Trim(),
+            StaticDirectory = (StaticDirectory ?? string.Empty).Trim(),
+            UrlPath = (UrlPath ?? string.Empty).Trim(),
+            ListenPort = ListenPort,
+            IndexFiles = (IndexFiles ?? string.Empty).Split([' ', ',', ';'],
+                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
+            SpaFallback = SpaFallback,
+            DirectoryListing = DirectoryListing,
+            CacheStaticAssets = CacheStaticAssets,
+            Compression = Compression
+        };
+        var errors = StaticSiteValidator.Validate(options);
+        if (errors.Count > 0)
+        {
+            ImportDiagnostics = string.Join(Environment.NewLine, errors);
+            return;
+        }
+        var generated = SelectedEngine == ServerEngine.Nginx
+            ? NginxStaticSiteGenerator.Generate(options)
+            : ApacheStaticSiteGenerator.Generate(options);
+        var preset = ConfigSyntaxDocument.Parse(SelectedEngine, generated);
+        if (preset.Diagnostics.Count > 0 || preset.VirtualHosts.Count != 1)
+        {
+            ImportDiagnostics = "Generated static route has a structural parsing issue.";
+            return;
+        }
+        var excluded = SelectedEngine == ServerEngine.Nginx
+            ? new[] { "listen", "server_name" } : new[] { "ServerName" };
+        var snippets = preset.VirtualHosts[0].Children
+            .Where(n => n.Kind is ConfigNodeKind.Directive or ConfigNodeKind.Block or ConfigNodeKind.Comment)
+            .Where(n => !excluded.Contains(n.Name, StringComparer.OrdinalIgnoreCase))
+            .Select(n => preset.GetText(n).Trim())
+            .Where(text => text.Length > 0);
+        var routeBody = string.Join(Environment.NewLine, snippets);
+        ApplyEditorOperation(doc => ConfigBlockEditor.InsertGeneratedSnippet(doc, parent, routeBody));
     }
 
     private void UndoEdit()

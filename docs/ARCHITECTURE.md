@@ -55,6 +55,20 @@ Anything more complex stays an editable raw string; typed validation can be
 disabled for advanced configurations. `ConfigTextDiff` presents a bounded,
 line-based comparison against the initial imported source before export.
 
+## Cross-parent editing and static routes
+
+`ConfigBlockEditor.MoveToParent` removes a selected syntax span, reparses,
+finds the destination node in the new snapshot, and inserts the moved fragment
+with relative indentation. Moves into self/descendant nodes or those likely
+to detach adjacent/inline comments are rejected. `InsertGeneratedSnippet`
+handles a structurally valid collection of generated directives/containers.
+
+The Import / Editor Static tab reuses the proven NGINX/Apache static-site
+generators, extracts their route-specific children (excluding listen/hostname
+directives), and inserts them into the selected existing server/VirtualHost.
+The other hosts and directives remain untouched. This does not silently
+create, enable or deploy a target server.
+
 ## Export
 
 The Static Website screen generates native config text with a validation gate. The UI saves UTF-8 text using Avalonia's platform SaveFilePicker; it does not write to a running server.
