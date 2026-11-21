@@ -262,4 +262,35 @@ public sealed class ConfigBlockEditorTests
         Assert.Contains("proxy_pass http://127.0.0.1:3000;", result.Text);
         Assert.Contains("alias /srv/assets/;", result.Text);
     }
+
+    [Fact]
+    public void MoveBetweenDocumentsComputesBothSnapshotsWithoutMutatingInputs()
+    {
+        const string originalSource =
+            "http {\nserver {\nlocation /assets/ { alias /srv/assets/; }\n}\n}\n";
+        const string originalDestination = "http {\nserver {\nlisten 8080;\n}\n}\n";
+        var source = ConfigSyntaxDocument.Parse(ServerEngine.Nginx, originalSource);
+        var destination = ConfigSyntaxDocument.Parse(ServerEngine.Nginx, originalDestination);
+        var location = source.AllNodes.Single(n => n.Name == "location");
+
+        var moved = ConfigBlockEditor.MoveBetweenDocuments(
+            source, location, destination, destination.VirtualHosts.Single());
+
+        Assert.Empty(moved.Source.Diagnostics);
+        Assert.Empty(moved.Destination.Diagnostics);
+        Assert.Empty(moved.Source.AllNodes.Where(n => n.Name == "location"));
+        Assert.Single(moved.Destination.AllNodes, n => n.Name == "location");
+        Assert.Equal(originalSource, source.Text);
+        Assert.Equal(originalDestination, destination.Text);
+    }
+
+    [Fact]
+    public void CrossFileMoveRejectsEngineMismatch()
+    {
+        var nginx = ConfigSyntaxDocument.Parse(ServerEngine.Nginx, "server { listen 80; }\n");
+        var apache = ConfigSyntaxDocument.Parse(ServerEngine.Apache,
+            "<VirtualHost *:80>\nServerName host\n</VirtualHost>\n");
+        Assert.Throws<ArgumentException>(() => ConfigBlockEditor.MoveBetweenDocuments(
+            nginx, nginx.VirtualHosts.Single(), apache, apache.VirtualHosts.Single()));
+    }
 }

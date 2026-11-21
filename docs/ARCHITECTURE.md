@@ -69,6 +69,20 @@ directives), and inserts them into the selected existing server/VirtualHost.
 The other hosts and directives remain untouched. This does not silently
 create, enable or deploy a target server.
 
+## Cross-file moves and encoding integrity
+
+`MoveBetweenDocuments` computes immutable source and destination snapshots
+before either is changed. The UI commits both snapshots together; a one-level
+undo succeeds only if neither file has changed since the move, preventing loss
+of subsequent edits. The two files' local per-file undo stacks are cleared
+when a cross-file transaction commits to avoid half-undoing it.
+
+`ConfigFileCodec` detects explicit UTF BOMs and otherwise requires valid UTF-8.
+It refuses malformed text bytes instead of inserting Unicode replacement
+characters. Each workspace file carries its original Unicode encoding,
+which is respected when exporting an individual file or ZIP project.
+Legacy 8-bit encodings require explicit conversion outside the app.
+
 ## Export
 
 The Static Website screen generates native config text with a validation gate. The UI saves UTF-8 text using Avalonia's platform SaveFilePicker; it does not write to a running server.

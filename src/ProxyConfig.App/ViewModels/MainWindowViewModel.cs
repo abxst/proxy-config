@@ -13,6 +13,10 @@ namespace ProxyConfig.App.ViewModels;
 public sealed class MainWindowViewModel : ObservableObject
 {
     private enum EditorPage { StaticSite, ReverseProxy, Redirect, Explorer, Import }
+    private sealed record CrossFileTransfer(
+        WorkspaceFileItem Source, WorkspaceFileItem Destination,
+        string BeforeSource, string BeforeDestination,
+        string AfterSource, string AfterDestination);
 
     private readonly DirectiveCatalog _catalog = DirectiveCatalog.LoadEmbedded();
     private WorkspaceFileItem? _selectedWorkspaceFile;
@@ -23,6 +27,10 @@ public sealed class MainWindowViewModel : ObservableObject
     private string _nodeSearchText = string.Empty;
     private string _newWorkspacePath = "nginx.conf";
     private BlockTargetItem? _selectedMoveTarget;
+    private WorkspaceFileItem? _targetWorkspaceFile;
+    private ConfigSyntaxDocument? _targetWorkspaceDocument;
+    private BlockTargetItem? _selectedCrossFileTarget;
+    private CrossFileTransfer? _lastTransfer;
     private ServerEngine _selectedEngine = ServerEngine.Nginx;
     private TargetPlatform _selectedTargetPlatform = TargetPlatform.Linux;
     private string _domain = "example.com";
@@ -107,6 +115,8 @@ public sealed class MainWindowViewModel : ObservableObject
         AddWorkspaceFileCommand = new RelayCommand(AddWorkspaceFile);
         MoveNodeToTargetCommand = new RelayCommand(MoveNodeToTarget);
         AddStaticRouteCommand = new RelayCommand(AddStaticRouteToSelection);
+        MoveToWorkspaceFileCommand = new RelayCommand(MoveToWorkspaceFile);
+        UndoWorkspaceTransferCommand = new RelayCommand(UndoWorkspaceTransfer);
         RefreshExplorer();
         RefreshDirectiveSuggestions();
         Regenerate();
@@ -133,6 +143,8 @@ public sealed class MainWindowViewModel : ObservableObject
     public IRelayCommand AddWorkspaceFileCommand { get; }
     public IRelayCommand MoveNodeToTargetCommand { get; }
     public IRelayCommand AddStaticRouteCommand { get; }
+    public IRelayCommand MoveToWorkspaceFileCommand { get; }
+    public IRelayCommand UndoWorkspaceTransferCommand { get; }
     public ObservableCollection<ConfigNodeListItem> ImportedNodes { get; } = [];
     public ObservableCollection<DocumentedDirective> SearchResults { get; } = [];
     public ObservableCollection<DocumentedDirective> DirectiveSuggestions { get; } = [];
@@ -140,6 +152,7 @@ public sealed class MainWindowViewModel : ObservableObject
     public ObservableCollection<ConfigContextAnalyzer.Warning> ContextWarnings { get; } = [];
     public ObservableCollection<WorkspaceFileItem> WorkspaceFiles { get; } = [];
     public ObservableCollection<BlockTargetItem> BlockTargets { get; } = [];
+    public ObservableCollection<BlockTargetItem> CrossFileBlockTargets { get; } = [];
     public ObservableCollection<string> IncludeEntries { get; } = [];
     public IReadOnlyList<ServerEngine> ServerEngines { get; } = Enum.GetValues<ServerEngine>();
     public IReadOnlyList<TargetPlatform> TargetPlatforms { get; } = Enum.GetValues<TargetPlatform>();
@@ -187,6 +200,23 @@ public sealed class MainWindowViewModel : ObservableObject
     }
 
     public bool HasWorkspaceFiles => WorkspaceFiles.Count > 0;
+    public bool CanUndoWorkspaceTransfer => _lastTransfer is not null;
+
+    public WorkspaceFileItem? TargetWorkspaceFile
+    {
+        get => _targetWorkspaceFile;
+        set
+        {
+            if (SetProperty(ref _targetWorkspaceFile, value))
+                RefreshCrossFileTargets();
+        }
+    }
+
+    public BlockTargetItem? SelectedCrossFileTarget
+    {
+        get => _selectedCrossFileTarget;
+        set => SetProperty(ref _selectedCrossFileTarget, value);
+    }
 
     public BlockTargetItem? SelectedMoveTarget
     {
@@ -223,6 +253,7 @@ public sealed class MainWindowViewModel : ObservableObject
                 ContextWarnings.Clear();
                 BlockTargets.Clear();
                 SelectedMoveTarget = null;
+                RefreshCrossFileTargets();
                 NotifyHistory();
                 return;
             }
@@ -232,6 +263,11 @@ public sealed class MainWindowViewModel : ObservableObject
             ImportText = value.Text;
             ImportFileName = value.Path;
             ReparseImported(recordHistory: false);
+            if (ReferenceEquals(TargetWorkspaceFile, value))
+                TargetWorkspaceFile = WorkspaceFiles.FirstOrDefault(item =>
+                    !ReferenceEquals(item, value));
+            else
+                RefreshCrossFileTargets();
             NotifyHistory();
         }
     }
@@ -536,6 +572,7 @@ public sealed class MainWindowViewModel : ObservableObject
                 RefreshExplorer();
                 RefreshDirectiveSuggestions();
                 if (IsImport) ParseImported();
+                RefreshCrossFileTargets();
                 OnPropertyChanged(nameof(SuggestedFileName));
                 OnPropertyChanged(nameof(CanAppendGeneratedHost));
             }
@@ -834,12 +871,13 @@ public sealed class MainWindowViewModel : ObservableObject
         OnPropertyChanged(nameof(CanAppendGeneratedHost));
     }
 
-    public void ImportFiles(IEnumerable<(string Path, string Content)> files)
+    public void ImportFiles(IEnumerable<ConfigImportedFile> files)
     {
         var rejected = new List<string>();
         WorkspaceFileItem? firstAdded = null;
-        foreach (var (path, content) in files)
+        foreach (var entry in files)
         {
+            var path = entry.Path;
             string key;
             try
             {
@@ -855,7 +893,7 @@ public sealed class MainWindowViewModel : ObservableObject
                 rejected.Add(path + " (duplicate)");
                 continue;
             }
-            var file = new WorkspaceFileItem(key, content);
+            var file = new WorkspaceFileItem(key, entry.Text, entry.Encoding);
             WorkspaceFiles.Add(file);
             firstAdded ??= file;
         }
@@ -870,6 +908,9 @@ public sealed class MainWindowViewModel : ObservableObject
         SelectPage(EditorPage.Import);
         SelectedRootWorkspaceFile ??= firstAdded;
         SelectedWorkspaceFile = firstAdded;
+        if (TargetWorkspaceFile is null)
+            TargetWorkspaceFile = WorkspaceFiles.FirstOrDefault(item =>
+                !ReferenceEquals(item, SelectedWorkspaceFile));
         if (rejected.Count > 0)
             ImportDiagnostics = "Skipped duplicate/invalid project paths: " +
                 string.Join(", ", rejected.Take(5));
@@ -893,7 +934,7 @@ public sealed class MainWindowViewModel : ObservableObject
             ImportDiagnostics = $"Workspace already contains {path}.";
             return;
         }
-        ImportFiles([(path, string.Empty)]);
+        ImportFiles([new ConfigImportedFile(path, string.Empty)]);
     }
 
     private void RemoveSelectedWorkspaceFile()
@@ -903,6 +944,15 @@ public sealed class MainWindowViewModel : ObservableObject
         var next = WorkspaceFiles.FirstOrDefault(file => !ReferenceEquals(file, target));
         SelectedWorkspaceFile = next;
         WorkspaceFiles.Remove(target);
+        if (ReferenceEquals(TargetWorkspaceFile, target))
+            TargetWorkspaceFile = WorkspaceFiles.FirstOrDefault(item =>
+                !ReferenceEquals(item, SelectedWorkspaceFile));
+        if (_lastTransfer is { } transfer &&
+            (ReferenceEquals(transfer.Source, target) || ReferenceEquals(transfer.Destination, target)))
+        {
+            _lastTransfer = null;
+            OnPropertyChanged(nameof(CanUndoWorkspaceTransfer));
+        }
         if (ReferenceEquals(SelectedRootWorkspaceFile, target))
             SelectedRootWorkspaceFile = next;
         OnPropertyChanged(nameof(HasWorkspaceFiles));
@@ -914,7 +964,7 @@ public sealed class MainWindowViewModel : ObservableObject
         var snapshot = new ConfigWorkspace();
         foreach (var file in WorkspaceFiles)
             snapshot.AddOrUpdate(file.Path, ReferenceEquals(file, SelectedWorkspaceFile)
-                ? ImportText : file.Text);
+                ? ImportText : file.Text, file.Encoding);
         return snapshot;
     }
 
@@ -934,6 +984,23 @@ public sealed class MainWindowViewModel : ObservableObject
             IncludeEntries.Add($"{edge.From} → {edge.To}" + (edge.Optional ? " (optional)" : ""));
         foreach (var issue in graph.Issues)
             IncludeEntries.Add($"WARNING {issue.File}: {issue.Message}");
+    }
+
+    private void RefreshCrossFileTargets()
+    {
+        CrossFileBlockTargets.Clear();
+        _targetWorkspaceDocument = null;
+        SelectedCrossFileTarget = null;
+        if (TargetWorkspaceFile is not { } file ||
+            ReferenceEquals(file, SelectedWorkspaceFile))
+            return;
+        _targetWorkspaceDocument = ConfigSyntaxDocument.Parse(SelectedEngine, file.Text);
+        CrossFileBlockTargets.Add(new BlockTargetItem(null, "Root of destination file"));
+        foreach (var block in _targetWorkspaceDocument.AllNodes
+            .Where(n => n.Kind == ConfigNodeKind.Block && n.IsClosed))
+            CrossFileBlockTargets.Add(new BlockTargetItem(block,
+                $"{block.Name} @ offset {block.Start}"));
+        SelectedCrossFileTarget = CrossFileBlockTargets.FirstOrDefault();
     }
 
     public void ParseImported() => ReparseImported(recordHistory: true);
@@ -1090,6 +1157,85 @@ public sealed class MainWindowViewModel : ObservableObject
             return;
         ApplyEditorOperation(doc => ConfigBlockEditor.MoveToParent(
             doc, selected, SelectedMoveTarget.Node));
+    }
+
+    private void MoveToWorkspaceFile()
+    {
+        if (!IsImportSnapshotCurrent() ||
+            SelectedWorkspaceFile is not { } sourceFile ||
+            TargetWorkspaceFile is not { } destinationFile ||
+            SelectedImportNode?.Node is not { } selected ||
+            SelectedCrossFileTarget is null)
+            return;
+        if (ReferenceEquals(sourceFile, destinationFile))
+        {
+            ImportDiagnostics = "Use Move to for moves within the same file.";
+            return;
+        }
+        if (_targetWorkspaceDocument is null ||
+            _targetWorkspaceDocument.Text != destinationFile.Text)
+        {
+            RefreshCrossFileTargets();
+            ImportDiagnostics = "Destination changed; select the destination block again.";
+            return;
+        }
+        try
+        {
+            var result = ConfigBlockEditor.MoveBetweenDocuments(
+                _importedDocument!, selected, _targetWorkspaceDocument,
+                SelectedCrossFileTarget.Node);
+            var previousSource = ImportText;
+            var previousDestination = destinationFile.Text;
+            sourceFile.Undo.Clear();
+            sourceFile.Redo.Clear();
+            destinationFile.Undo.Clear();
+            destinationFile.Redo.Clear();
+            destinationFile.Text = result.Destination.Text;
+            ImportText = result.Source.Text;
+            _lastTransfer = new CrossFileTransfer(sourceFile, destinationFile,
+                previousSource, previousDestination, result.Source.Text, result.Destination.Text);
+            OnPropertyChanged(nameof(CanUndoWorkspaceTransfer));
+            ReparseImported(recordHistory: false);
+            RefreshCrossFileTargets();
+            NotifyHistory();
+        }
+        catch (ArgumentException error)
+        {
+            ImportDiagnostics = error.Message;
+        }
+        catch (InvalidOperationException error)
+        {
+            ImportDiagnostics = error.Message;
+        }
+    }
+
+    private void UndoWorkspaceTransfer()
+    {
+        if (_lastTransfer is not { } transfer)
+            return;
+        if (!WorkspaceFiles.Contains(transfer.Source) ||
+            !WorkspaceFiles.Contains(transfer.Destination) ||
+            transfer.Source.Text != transfer.AfterSource ||
+            transfer.Destination.Text != transfer.AfterDestination)
+        {
+            ImportDiagnostics = "Files changed since transfer. Undo refused to avoid losing newer edits.";
+            return;
+        }
+        transfer.Source.Text = transfer.BeforeSource;
+        transfer.Destination.Text = transfer.BeforeDestination;
+        transfer.Source.Undo.Clear();
+        transfer.Source.Redo.Clear();
+        transfer.Destination.Undo.Clear();
+        transfer.Destination.Redo.Clear();
+        if (ReferenceEquals(SelectedWorkspaceFile, transfer.Source))
+            ImportText = transfer.BeforeSource;
+        else if (ReferenceEquals(SelectedWorkspaceFile, transfer.Destination))
+            ImportText = transfer.BeforeDestination;
+        _lastTransfer = null;
+        OnPropertyChanged(nameof(CanUndoWorkspaceTransfer));
+        ReparseImported(recordHistory: false);
+        RefreshCrossFileTargets();
+        NotifyHistory();
     }
 
     private void AddStaticRouteToSelection()

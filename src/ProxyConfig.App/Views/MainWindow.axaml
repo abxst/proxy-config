@@ -352,6 +352,7 @@
               </StackPanel>
             </TabItem>
             <TabItem Header="Include">
+              <ScrollViewer MaxHeight="290">
               <StackPanel Margin="6,10,6,6" Spacing="8">
                 <TextBlock FontSize="12" Text="{Binding IncludeSummary}" TextWrapping="Wrap" />
                 <TextBlock FontSize="12" Text="Project root configuration" />
@@ -363,8 +364,27 @@
                 </ComboBox>
                 <TextBox PlaceholderText="Optional Apache ServerRoot (target path)"
                          Text="{Binding ApacheServerRoot, UpdateSourceTrigger=PropertyChanged}" />
-                <ListBox Height="105" ItemsSource="{Binding IncludeEntries}" />
+                <ListBox Height="78" ItemsSource="{Binding IncludeEntries}" />
+                <TextBlock FontSize="12" Text="Move selected AST node to another file" />
+                <ComboBox ItemsSource="{Binding WorkspaceFiles}"
+                          SelectedItem="{Binding TargetWorkspaceFile}">
+                  <ComboBox.ItemTemplate>
+                    <DataTemplate><TextBlock Text="{Binding Display}" /></DataTemplate>
+                  </ComboBox.ItemTemplate>
+                </ComboBox>
+                <ComboBox ItemsSource="{Binding CrossFileBlockTargets}"
+                          SelectedItem="{Binding SelectedCrossFileTarget}">
+                  <ComboBox.ItemTemplate>
+                    <DataTemplate><TextBlock Text="{Binding Display}" /></DataTemplate>
+                  </ComboBox.ItemTemplate>
+                </ComboBox>
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <Button Command="{Binding MoveToWorkspaceFileCommand}" Content="Move into file" />
+                  <Button Command="{Binding UndoWorkspaceTransferCommand}"
+                          IsEnabled="{Binding CanUndoWorkspaceTransfer}" Content="Undo transfer" />
+                </StackPanel>
               </StackPanel>
+              </ScrollViewer>
             </TabItem>
             <TabItem Header="Diff">
               <StackPanel Margin="6,10,6,6" Spacing="7">

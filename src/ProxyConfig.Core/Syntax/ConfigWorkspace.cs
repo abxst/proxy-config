@@ -1,5 +1,4 @@
 using System.IO.Compression;
-using System.Text;
 using ProxyConfig.Core.Models;
 
 namespace ProxyConfig.Core.Syntax;
@@ -11,13 +10,16 @@ namespace ProxyConfig.Core.Syntax;
 public sealed class ConfigWorkspace
 {
     private readonly Dictionary<string, string> _files = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, ConfigEncodingKind> _encodings = new(StringComparer.Ordinal);
 
     public IReadOnlyDictionary<string, string> Files => _files;
 
-    public void AddOrUpdate(string relativePath, string content)
+    public void AddOrUpdate(
+        string relativePath, string content, ConfigEncodingKind encoding = ConfigEncodingKind.Utf8)
     {
         var key = NormalizeRelativePath(relativePath);
         _files[key] = content ?? string.Empty;
+        _encodings[key] = encoding;
     }
 
     public bool TryRead(string relativePath, out string content) =>
@@ -35,8 +37,9 @@ public sealed class ConfigWorkspace
         foreach (var pair in _files.OrderBy(x => x.Key, StringComparer.Ordinal))
         {
             var entry = archive.CreateEntry(pair.Key, CompressionLevel.Optimal);
-            using var writer = new StreamWriter(entry.Open(), new UTF8Encoding(false));
-            writer.Write(pair.Value);
+            using var stream = entry.Open();
+            var bytes = ConfigFileCodec.Encode(pair.Value, _encodings[pair.Key]);
+            stream.Write(bytes);
         }
     }
 
