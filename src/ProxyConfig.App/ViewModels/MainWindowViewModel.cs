@@ -11,6 +11,8 @@ namespace ProxyConfig.App.ViewModels;
 
 public sealed class MainWindowViewModel : ObservableObject
 {
+    private enum EditorPage { StaticSite, ReverseProxy, Redirect, Explorer }
+
     private readonly DirectiveCatalog _catalog = DirectiveCatalog.LoadEmbedded();
     private ServerEngine _selectedEngine = ServerEngine.Nginx;
     private TargetPlatform _selectedTargetPlatform = TargetPlatform.Linux;
@@ -23,7 +25,19 @@ public sealed class MainWindowViewModel : ObservableObject
     private bool _directoryListing;
     private bool _cacheStaticAssets;
     private bool _compression;
-    private bool _isExplorer;
+    private EditorPage _page;
+    private string _upstreamUrl = "http://127.0.0.1:3000";
+    private string _proxyUrlPath = "/";
+    private bool _stripPrefix = true;
+    private bool _preserveHost = true;
+    private bool _webSocket;
+    private bool _enableTls;
+    private string _certificateFile = string.Empty;
+    private string _privateKeyFile = string.Empty;
+    private string _redirectDestination = "https://example.org";
+    private int _redirectStatus = 301;
+    private string _requestHeadersText = string.Empty;
+    private string _responseHeadersText = string.Empty;
     private string _searchText = string.Empty;
     private bool _includeVariables;
     private DocumentedDirective? _selectedDirective;
@@ -34,29 +48,106 @@ public sealed class MainWindowViewModel : ObservableObject
 
     public MainWindowViewModel()
     {
-        ShowStaticSiteCommand = new RelayCommand(() => IsExplorer = false);
-        ShowExplorerCommand = new RelayCommand(() => IsExplorer = true);
+        ShowStaticSiteCommand = new RelayCommand(() => SelectPage(EditorPage.StaticSite));
+        ShowReverseProxyCommand = new RelayCommand(() => SelectPage(EditorPage.ReverseProxy));
+        ShowRedirectCommand = new RelayCommand(() => SelectPage(EditorPage.Redirect));
+        ShowExplorerCommand = new RelayCommand(() => SelectPage(EditorPage.Explorer));
         RefreshExplorer();
         Regenerate();
     }
 
     public IRelayCommand ShowStaticSiteCommand { get; }
+    public IRelayCommand ShowReverseProxyCommand { get; }
+    public IRelayCommand ShowRedirectCommand { get; }
     public IRelayCommand ShowExplorerCommand { get; }
     public ObservableCollection<DocumentedDirective> SearchResults { get; } = [];
     public IReadOnlyList<ServerEngine> ServerEngines { get; } = Enum.GetValues<ServerEngine>();
     public IReadOnlyList<TargetPlatform> TargetPlatforms { get; } = Enum.GetValues<TargetPlatform>();
+    public IReadOnlyList<int> RedirectStatuses { get; } = [301, 302, 307, 308];
 
-    public bool IsExplorer
+    public bool IsExplorer => _page == EditorPage.Explorer;
+    public bool IsStaticSite => _page == EditorPage.StaticSite;
+    public bool IsReverseProxy => _page == EditorPage.ReverseProxy;
+    public bool IsRedirect => _page == EditorPage.Redirect;
+    public bool IsHostPreset => IsReverseProxy || IsRedirect;
+    public bool IsGenerator => !IsExplorer;
+
+    public string SuggestedFileName =>
+        $"{(SelectedEngine == ServerEngine.Nginx ? "nginx" : "apache")}-" +
+        (_page == EditorPage.ReverseProxy ? "proxy" :
+         _page == EditorPage.Redirect ? "redirect" : "site") + ".conf";
+
+    public string UpstreamUrl
     {
-        get => _isExplorer;
-        set
-        {
-            if (SetProperty(ref _isExplorer, value))
-                OnPropertyChanged(nameof(IsStaticSite));
-        }
+        get => _upstreamUrl;
+        set { if (SetProperty(ref _upstreamUrl, value)) Regenerate(); }
     }
 
-    public bool IsStaticSite => !IsExplorer;
+    public string ProxyUrlPath
+    {
+        get => _proxyUrlPath;
+        set { if (SetProperty(ref _proxyUrlPath, value)) Regenerate(); }
+    }
+
+    public bool StripPrefix
+    {
+        get => _stripPrefix;
+        set { if (SetProperty(ref _stripPrefix, value)) Regenerate(); }
+    }
+
+    public bool PreserveHost
+    {
+        get => _preserveHost;
+        set { if (SetProperty(ref _preserveHost, value)) Regenerate(); }
+    }
+
+    public bool WebSocket
+    {
+        get => _webSocket;
+        set { if (SetProperty(ref _webSocket, value)) Regenerate(); }
+    }
+
+    public bool EnableTls
+    {
+        get => _enableTls;
+        set { if (SetProperty(ref _enableTls, value)) Regenerate(); }
+    }
+
+    public string CertificateFile
+    {
+        get => _certificateFile;
+        set { if (SetProperty(ref _certificateFile, value)) Regenerate(); }
+    }
+
+    public string PrivateKeyFile
+    {
+        get => _privateKeyFile;
+        set { if (SetProperty(ref _privateKeyFile, value)) Regenerate(); }
+    }
+
+    public string RedirectDestination
+    {
+        get => _redirectDestination;
+        set { if (SetProperty(ref _redirectDestination, value)) Regenerate(); }
+    }
+
+    public int RedirectStatus
+    {
+        get => _redirectStatus;
+        set { if (SetProperty(ref _redirectStatus, value)) Regenerate(); }
+    }
+
+    public string RequestHeadersText
+    {
+        get => _requestHeadersText;
+        set { if (SetProperty(ref _requestHeadersText, value)) Regenerate(); }
+    }
+
+    public string ResponseHeadersText
+    {
+        get => _responseHeadersText;
+        set { if (SetProperty(ref _responseHeadersText, value)) Regenerate(); }
+    }
 
     public string SearchText
     {
@@ -97,6 +188,7 @@ public sealed class MainWindowViewModel : ObservableObject
             {
                 Regenerate();
                 RefreshExplorer();
+                OnPropertyChanged(nameof(SuggestedFileName));
             }
         }
     }
@@ -222,9 +314,30 @@ public sealed class MainWindowViewModel : ObservableObject
         SearchResultCount = $"{results.Count:N0} matching entries · offline snapshot {_catalog.GeneratedAtUtc[..10]}";
     }
 
+    private void SelectPage(EditorPage page)
+    {
+        if (_page == page)
+            return;
+        _page = page;
+        OnPropertyChanged(nameof(IsExplorer));
+        OnPropertyChanged(nameof(IsStaticSite));
+        OnPropertyChanged(nameof(IsReverseProxy));
+        OnPropertyChanged(nameof(IsRedirect));
+        OnPropertyChanged(nameof(IsHostPreset));
+        OnPropertyChanged(nameof(IsGenerator));
+        OnPropertyChanged(nameof(SuggestedFileName));
+        Regenerate();
+    }
+
     private void Regenerate()
     {
         ExportStatus = string.Empty;
+        if (IsHostPreset)
+        {
+            RegenerateHost();
+            return;
+        }
+
         var options = new StaticSiteOptions
         {
             Engine = SelectedEngine,
@@ -257,6 +370,43 @@ public sealed class MainWindowViewModel : ObservableObject
                 _ => throw new ArgumentOutOfRangeException()
             };
         }
+
+        OnPropertyChanged(nameof(CanExport));
+    }
+
+    private void RegenerateHost()
+    {
+        var requestHeaders = HttpHeaderParser.Parse(
+            IsReverseProxy ? RequestHeadersText : string.Empty, out var requestErrors);
+        var responseHeaders = HttpHeaderParser.Parse(ResponseHeadersText, out var responseErrors);
+        var options = new HostConfigOptions
+        {
+            Engine = SelectedEngine,
+            Mode = IsReverseProxy ? HostConfigMode.ReverseProxy : HostConfigMode.Redirect,
+            TargetPlatform = SelectedTargetPlatform,
+            Domain = (Domain ?? string.Empty).Trim(),
+            ListenPort = ListenPort,
+            EnableTls = EnableTls,
+            CertificateFile = (CertificateFile ?? string.Empty).Trim(),
+            PrivateKeyFile = (PrivateKeyFile ?? string.Empty).Trim(),
+            UrlPath = (ProxyUrlPath ?? string.Empty).Trim(),
+            UpstreamUrl = (UpstreamUrl ?? string.Empty).Trim(),
+            StripPrefix = StripPrefix,
+            PreserveHost = PreserveHost,
+            WebSocket = WebSocket,
+            RequestHeaders = requestHeaders,
+            ResponseHeaders = responseHeaders,
+            RedirectDestination = (RedirectDestination ?? string.Empty).Trim(),
+            RedirectStatus = RedirectStatus
+        };
+
+        var errors = requestErrors.Concat(responseErrors).Concat(HostConfigValidator.Validate(options)).ToList();
+        ValidationMessage = string.Join(Environment.NewLine, errors);
+        Preview = errors.Count != 0
+            ? "# Fix validation errors before generation."
+            : SelectedEngine == ServerEngine.Nginx
+                ? NginxHostGenerator.Generate(options)
+                : ApacheHostGenerator.Generate(options);
 
         OnPropertyChanged(nameof(CanExport));
     }
