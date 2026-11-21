@@ -2,4 +2,8 @@
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
   </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Registry/catalog.json.gz" LogicalName="ProxyConfig.Core.Registry.catalog.json.gz" />
+  </ItemGroup>
 </Project>

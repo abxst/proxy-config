@@ -1,21 +1,25 @@
 # Roadmap
 
-## M0 - Foundation
+## M0 — Foundation ✅
 
 - Avalonia desktop shell
 - .NET 10 solution
 - CI build/test/publish
-- Shared core model
-- NGINX and Apache backend projects
+- Shared static-site model
+- NGINX and Apache generator backends
 
-## M1 - Registry
+## M1 — Public documentation explorer ✅ (reference catalog)
 
-- Generate committed registries from official NGINX and Apache documentation
-- Version/module/context/edition/platform metadata
-- Registry validation tests
-- Offline directive search
+- Commit compact registry extracted from official NGINX/Apache documentation indexes
+- Include syntax, module, context, default and available upstream status/compatibility fields
+- Preserve module-level duplicates and indexed NGINX variables
+- Offline search, detail panel, source URLs and catalog tests
+- `.conf` export from the Static Website preset
+- Build/test both Debug and Release and publish tagged GitHub Releases
 
-## M2 - AST and parsers
+**Still required before the catalog can drive arbitrary config editing:** exact edition/platform/version support audit; module availability metadata; argument grammar.
+
+## M2 — AST and parsers
 
 - Trivia-preserving AST
 - NGINX lexer/parser/generator
@@ -23,35 +27,32 @@
 - Unknown/raw nodes
 - Include graph and circular include protection
 
-## M3 - Validation
+## M3 — Validation
 
 - Syntax and argument validation
 - Context/module/version checks
 - Reference and dependency diagnostics
-- Security-oriented lint warnings without automatic rewriting
+- Security lint warnings without automatic rewriting
 
-## M4 - Visual configuration editor
+## M4 — Visual configuration editor
 
 - Configuration tree
 - Registry-driven property editor
 - Search and command palette
 - Undo/redo
 
-## M5 - Presets
+## M5 — Presets
 
 Static Website is the first implemented preset. Continue with:
 
-- Redirect
-- Reverse proxy
-- WebSocket
-- gRPC
+- Redirect / virtual hosts
+- Reverse proxy / WebSocket / gRPC
 - Load balancer
 - FastCGI/PHP
 - TLS
-- TCP/UDP stream where supported
-- Mail proxy where supported
+- TCP/UDP stream and mail proxy where supported
 
-## M6 - Raw editor and round trip
+## M6 — Raw editor and round trip
 
 - Syntax highlighting
 - Completion from registry
@@ -59,9 +60,9 @@ Static Website is the first implemented preset. Continue with:
 - Visual/raw synchronization
 - Diff before export
 
-## M7 - Coverage and hardening
+## M7 — Coverage and hardening
 
-- Audit every public documented directive in the target upstream snapshots
+- Audit every public documented directive against target upstream snapshots
 - Fuzz parsers
-- Golden corpus from representative official examples
+- Golden corpus from official examples
 - Large configuration performance tests

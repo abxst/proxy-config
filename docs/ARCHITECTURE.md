@@ -2,33 +2,40 @@
 
 Proxy Config keeps the UI independent from server-specific syntax.
 
-UI -> project model -> typed configuration model / AST -> validators -> NGINX or Apache generators.
+Desktop UI -> typed project models -> validation -> NGINX / Apache generators.
 
 ## Projects
 
-- ProxyConfig.App: Avalonia desktop shell and view models.
-- ProxyConfig.Core: shared models, validation, diagnostics and directive registry types.
-- ProxyConfig.Nginx: NGINX parser/generator/validator backend.
-- ProxyConfig.Apache: Apache HTTP Server parser/generator/validator backend.
-- ProxyConfig.Tests: cross-backend behavior and regression tests.
+- `ProxyConfig.App`: Avalonia desktop shell, static-site form, offline explorer and Save dialog.
+- `ProxyConfig.Core`: shared models, static-site validation and embedded documentation catalog.
+- `ProxyConfig.Nginx`: NGINX static-site generator.
+- `ProxyConfig.Apache`: Apache HTTP Server static-site generator.
+- `ProxyConfig.Tests`: regression tests for the generators and catalog.
 
-## Directive registry
+## Directive documentation catalog
 
-The registry is intentionally metadata-driven. A directive definition can carry server, module, syntax, argument schema, contexts, default, version range, edition/platform constraints and the official documentation source.
+`src/ProxyConfig.Core/Registry/catalog.json.gz` is generated from the official NGINX and Apache documentation indexes. It stores rows with server, name, module, syntax, context, default, description, status, override class, compatibility notes and documentation URL, plus NGINX variable references.
 
-The application must eventually generate forms from this metadata rather than creating a bespoke screen for each directive.
+- Compressed and embedded as an assembly resource: no internet connection needed at runtime.
+- All entries (including duplicate names in different modules) are preserved.
+- The app can search names, modules, syntax, context and descriptions.
+- Catalog inclusion is **not** proof of OSS availability or support in any particular server installation.
+- Blank source metadata stays blank. Version, edition and platform support are not guessed from missing documentation fields.
+- This reference catalog is not the future typed, version-aware validation registry.
+
+## Export
+
+The Static Website screen generates native config text with a validation gate. The UI saves UTF-8 text using Avalonia's platform SaveFilePicker; it does not write to a running server.
 
 ## Round-trip requirement
 
-When import support lands, unknown or not-yet-typed directives must be retained as raw AST nodes. Importing and exporting a configuration must never silently delete input that the current registry does not understand.
+When import support lands, unknown or not-yet-typed directives must be retained as raw AST nodes. Importing and exporting must never silently delete input that the current registry does not understand.
 
 ## Static serving
 
-Static serving is a high-level preset that emits native configuration:
+- NGINX root mapping: `root` + `index` + `try_files`.
+- NGINX mounted mapping: `location` + `alias`.
+- Apache root mapping: `DocumentRoot` + `<Directory>`.
+- Apache mounted mapping: `Alias` + `<Directory>`.
 
-- NGINX root mapping: root + index + try_files.
-- NGINX mounted mapping: location + alias.
-- Apache root mapping: DocumentRoot + Directory.
-- Apache mounted mapping: Alias + Directory.
-
-The path entered in the desktop UI refers to the target server filesystem. It is not required to exist on the machine running Proxy Config.
+The directory entered in the desktop UI refers to the target server filesystem; it is not required to exist on the computer running Proxy Config.
