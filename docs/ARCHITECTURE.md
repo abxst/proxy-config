@@ -98,6 +98,22 @@ surprising exposure settings (directory listings, server tokens, .htaccess
 override scope). These are review hints, not assertions of exploitable
 vulnerabilities, and never rewrite or block configuration exports.
 
+## PHP-FPM/FastCGI and NGINX Stream presets
+
+`FastCgiValidator` checks a hostname, explicit TCP endpoint, target-server
+document root, listen port and safe index filenames. NGINX emits a server
+snippet with `try_files` to avoid invoking PHP for a missing script; Apache
+emits a `VirtualHost` with a `FilesMatch` / `SetHandler` pair. These require
+existing PHP-FPM and server modules; no local filesystem or service is probed.
+The Apache handler requires `mod_proxy_fcgi` (Apache 2.4.10+) and `mod_proxy`.
+
+`StreamProxyValidator` validates the NGINX stream listen port, TCP/UDP choice,
+timeout and target endpoint. The generator emits a root-level `stream` block,
+not an HTTP-context `server`. The editor disables generated-host appending for
+this preset to avoid corrupting the destination HTTP context. An NGINX build
+with the stream module is required. Neither preset attempts to inspect
+installed modules or to deploy any configuration.
+
 ## Export
 
 The Static Website screen generates native config text with a validation gate. The UI saves UTF-8 text using Avalonia's platform SaveFilePicker; it does not write to a running server.

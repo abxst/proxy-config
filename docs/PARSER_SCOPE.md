@@ -16,8 +16,9 @@
 - Move syntax subtrees between explicitly imported files with an atomic two-document calculation and guarded one-level undo; retain Unicode file BOM/encoding on export.
 - Display narrow, non-blocking security review hints for explicitly enabled directory listing and version exposure settings; no automatic rewrites.
 - Identify Virtual Hosts and append another generated NGINX server (inside an existing `http` block when present) or Apache `VirtualHost`.
+- The NGINX Stream preset produces a root-scope `stream` block; generated-host appending rejects it because `stream` cannot be nested under `http`.
 - Evaluate a finite in-memory set of files for `include` / `Include` / `IncludeOptional` edges, wildcards, missing required paths, circular references and recursion depth.
-- Import UTF-8 configuration through Avalonia's open dialog; export the current UTF-8 text through its save dialog.
+- Import UTF-8, UTF-16 or UTF-32 files (BOM-aware) through Avalonia's open dialog; export individual files and ZIP workspaces using their preserved encodings.
 
 ## Explicit limitations
 
@@ -31,10 +32,10 @@
 - Include graph does not read arbitrary files from disk or remote systems. It resolves only explicitly supplied workspace files.
 - The GUI imports multiple files into an in-memory workspace but edits one active document at a time. Folder import is explicitly user-selected and subject to limits; it does not follow included paths outside the workspace.
 - Apache relative include resolution defaults to the source-file folder unless the caller supplies an Apache `ServerRoot` explicitly.
-- A top-level NGINX `server` snippet is suitable for a configuration included from an `http` block, not as a standalone full `nginx.conf`.
+- A top-level NGINX HTTP `server` snippet is suitable for a configuration included from an `http` block, not as a standalone full `nginx.conf`; a Stream preset emits a separate main-context `stream` block.
 - Typed argument hints intentionally cover only trivial signatures. Complex parameters, condition-dependent meanings and module/version compatibility still require server-side verification.
 - No server installation, restart, deployment, or server-side write operations are performed.
 
 ## Next steps
 
-Typed directive grammar, version/module/context validation, a project-level file collection, visual property forms, semantic diagnostics and byte-preserving import/export across alternate encodings.
+Per-directive typed grammar, installed version/module/context validation, more route-scoped property forms, semantic diagnostics, richer editing interactions and larger real-world configuration corpora.
