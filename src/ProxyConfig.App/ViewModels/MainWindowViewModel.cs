@@ -1477,6 +1477,13 @@ public sealed class MainWindowViewModel : ObservableObject
             .Select(n => preset.GetText(n).Trim())
             .Where(text => text.Length > 0);
         var routeBody = string.Join(Environment.NewLine, snippets);
+        var conflict = ConfigRouteConflictDetector.FindExactDuplicate(
+            _importedDocument!, parent, routeBody);
+        if (conflict is not null)
+        {
+            ImportDiagnostics = conflict;
+            return;
+        }
         ApplyEditorOperation(doc => ConfigBlockEditor.InsertGeneratedSnippet(doc, parent, routeBody));
     }
 
@@ -1524,6 +1531,13 @@ public sealed class MainWindowViewModel : ObservableObject
         var snippet = SelectedEngine == ServerEngine.Nginx
             ? NginxHostGenerator.GenerateReverseProxyRoute(options)
             : ApacheHostGenerator.GenerateReverseProxyRoute(options);
+        var conflict = ConfigRouteConflictDetector.FindExactDuplicate(
+            _importedDocument!, host, snippet);
+        if (conflict is not null)
+        {
+            ImportDiagnostics = conflict;
+            return;
+        }
         ApplyEditorOperation(doc => ConfigBlockEditor.InsertGeneratedSnippet(doc, host, snippet));
     }
 
@@ -1552,6 +1566,13 @@ public sealed class MainWindowViewModel : ObservableObject
         var snippet = SelectedEngine == ServerEngine.Nginx
             ? NginxFastCgiGenerator.GenerateHandlerRoute(options)
             : ApacheFastCgiGenerator.GenerateHandlerRoute(options);
+        var conflict = ConfigRouteConflictDetector.FindExactDuplicate(
+            _importedDocument!, host, snippet);
+        if (conflict is not null)
+        {
+            ImportDiagnostics = conflict;
+            return;
+        }
         ApplyEditorOperation(doc => ConfigBlockEditor.InsertGeneratedSnippet(doc, host, snippet));
     }
 

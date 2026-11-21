@@ -46,4 +46,28 @@ public sealed class ConfigSecurityLinterTests
             "server { autoindex off; server_tokens off; vendor_option custom; }\n");
         Assert.Empty(ConfigSecurityLinter.Analyze(nginx));
     }
+
+    [Fact]
+    public void TlsProtocolReviewFlagsExplicitLegacyVersionsButNotModernAllowlists()
+    {
+        var nginx = ConfigSyntaxDocument.Parse(ServerEngine.Nginx, """
+            http {
+                ssl_protocols TLSv1.1 TLSv1.2;
+                server {
+                    ssl_protocols TLSv1.2 TLSv1.3;
+                }
+            }
+            """);
+        var apache = ConfigSyntaxDocument.Parse(ServerEngine.Apache, """
+            SSLProtocol -all +TLSv1.2 +TLSv1.3
+            <VirtualHost *:443>
+                SSLProtocol All
+            </VirtualHost>
+            """);
+        Assert.Single(ConfigSecurityLinter.Analyze(nginx));
+        Assert.Single(ConfigSecurityLinter.Analyze(apache));
+        Assert.All(ConfigSecurityLinter.Analyze(nginx)
+            .Concat(ConfigSecurityLinter.Analyze(apache)),
+            warning => Assert.Contains("Legacy", warning.Message));
+    }
 }
