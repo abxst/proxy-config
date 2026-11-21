@@ -123,8 +123,8 @@ them through the text-preserving `InsertGeneratedSnippet` operation.
 at the root/`http` level; it refuses `server` nodes in `stream` or `mail`
 blocks. A PHP handler's NGINX location has its own document root to avoid
 modifying the existing server root. Apache keeps the existing VirtualHost
-DocumentRoot. Route conflict detection and installed-module validation remain
-out of scope; check generated directives before using them on a real server.
+DocumentRoot. Overlapping-path and installed-module validation remain out
+of scope; check generated directives before using them on a real server.
 
 ## Explicit TLS protocol allowlists
 
@@ -150,6 +150,18 @@ or complex inherited routing. No existing config is automatically removed.
 legacy SSL/TLS protocol selections; ambiguous Apache exclusions are not
 interpreted as positive protocol enables. These remain review hints rather
 than an exhaustive security audit.
+
+## NGINX gRPC routes
+
+`GrpcRouteValidator` accepts an explicitly typed TCP backend, a safe
+location path, a `grpc://` or `grpcs://` scheme choice and bounded read/send
+timeouts. `NginxGrpcRouteGenerator` emits only a `location` block with
+`grpc_pass`, `grpc_read_timeout` and `grpc_send_timeout`. It can be inserted
+into an imported HTTP `server` through the same duplicate-selector guard.
+It does not enable HTTP/2 or install modules on the frontend server. The
+target NGINX installation must have HTTP/2 and gRPC modules, and the existing
+listener must be configured appropriately for gRPC clients. Apache's
+`mod_proxy_http2` behavior is distinct and is not presented as equivalent.
 
 ## Export
 
