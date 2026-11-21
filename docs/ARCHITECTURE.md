@@ -26,6 +26,20 @@ Import path: NGINX / Apache source -> text-preserving syntax AST -> selected-nod
 - Blank source metadata stays blank. Version, edition and platform support are not guessed from missing documentation fields.
 - This reference catalog is not the future typed, version-aware validation registry.
 
+## Context advisories
+
+`ConfigContextAnalyzer` walks the imported AST and compares recognized directive
+placements against the catalog's documented context lists. It separates NGINX
+HTTP/Stream/Mail module families and homonymous block/directive entries; Apache
+containers are mapped to server-config, virtual-host, directory and .htaccess
+scopes. Apache `IfModule`/`IfDefine`/`IfVersion` inherit their enclosing context.
+
+Advisories do not rewrite text or prevent export. Unknown directives, unusual
+containers, absent metadata and ambiguous family matches remain unverified.
+The app cannot infer which modules, edition or version are installed on the
+target server. Runtime syntax checks against an actual server binary remain
+outside the scope of this offline-only app.
+
 ## Export
 
 The Static Website screen generates native config text with a validation gate. The UI saves UTF-8 text using Avalonia's platform SaveFilePicker; it does not write to a running server.
