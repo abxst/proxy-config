@@ -47,6 +47,15 @@ public static partial class HostConfigValidator
                 errors.Add("Upstream must be an absolute http:// or https:// origin without path, query or credentials.");
 
             ValidateHeaders(options.RequestHeaders, "Request", errors);
+            if (options.UseProxyTuning)
+            {
+                if (options.ProxyConnectTimeoutSeconds is < 1 or > 75)
+                    errors.Add("Proxy connect timeout must be 1–75 seconds.");
+                if (options.ProxyReadTimeoutSeconds is < 1 or > 3600)
+                    errors.Add("Proxy read timeout must be 1–3,600 seconds.");
+                if (options.ProxySendTimeoutSeconds is < 1 or > 3600)
+                    errors.Add("Proxy send timeout must be 1–3,600 seconds.");
+            }
         }
         else if (options.Mode == HostConfigMode.Redirect)
         {

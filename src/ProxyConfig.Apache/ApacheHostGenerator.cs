@@ -69,7 +69,10 @@ public static class ApacheHostGenerator
             if (options.WebSocket)
                 sb.AppendLine("    # WebSocket Upgrade requires Apache HTTP Server 2.4.47 or newer.");
             var upgrade = options.WebSocket ? " upgrade=websocket" : string.Empty;
-            sb.AppendLine($"    ProxyPass \"{mountPath}\" \"{target}\"{upgrade}");
+            var tuning = options.UseProxyTuning
+                ? $" connectiontimeout={options.ProxyConnectTimeoutSeconds} timeout={options.ProxyReadTimeoutSeconds}"
+                : string.Empty;
+            sb.AppendLine($"    ProxyPass \"{mountPath}\" \"{target}\"{upgrade}{tuning}");
             sb.AppendLine($"    ProxyPassReverse \"{mountPath}\" \"{target}\"");
 
             foreach (var header in options.RequestHeaders)

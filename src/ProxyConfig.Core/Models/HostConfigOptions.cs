@@ -35,6 +35,11 @@ public sealed record HostConfigOptions
     public bool StripPrefix { get; init; } = true;
     public bool PreserveHost { get; init; } = true;
     public bool WebSocket { get; init; }
+    public bool UseProxyTuning { get; init; }
+    public int ProxyConnectTimeoutSeconds { get; init; } = 10;
+    public int ProxyReadTimeoutSeconds { get; init; } = 60;
+    public int ProxySendTimeoutSeconds { get; init; } = 60;
+    public bool ProxyBuffering { get; init; } = true;
     public IReadOnlyList<HttpHeader> RequestHeaders { get; init; } = [];
     public IReadOnlyList<HttpHeader> ResponseHeaders { get; init; } = [];
 
