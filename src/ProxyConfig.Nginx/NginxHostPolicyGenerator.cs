@@ -34,6 +34,27 @@ public static class NginxHostPolicyGenerator
         return sb.ToString();
     }
 
+    /// <summary>
+    /// Only the declared proxy addresses may override the downstream client
+    /// IP. Requires ngx_http_realip_module on the target NGINX installation.
+    /// </summary>
+    public static string GenerateTrustedProxies(TrustedProxyOptions options)
+    {
+        var errors = TrustedProxyValidator.Validate(options);
+        if (errors.Count != 0)
+            throw new ArgumentException(string.Join(" ", errors), nameof(options));
+        var sb = new StringBuilder();
+        sb.AppendLine("# Requires ngx_http_realip_module.");
+        foreach (var address in options.TrustedProxyAddresses)
+        {
+            IpAccessValidator.TryNormalizeIpOrCidr(address, out var normalized);
+            sb.AppendLine($"set_real_ip_from {normalized};");
+        }
+        sb.AppendLine("real_ip_header X-Forwarded-For;");
+        sb.AppendLine("real_ip_recursive on;");
+        return sb.ToString();
+    }
+
     private static string Path(string input, TargetPlatform target) =>
         target == TargetPlatform.Windows ? input.Replace('\\', '/') : input;
 

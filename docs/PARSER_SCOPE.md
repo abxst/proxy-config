@@ -16,6 +16,7 @@
 - Insert reverse-proxy routes or PHP-FPM handlers into a selected existing HTTP host; refuse NGINX stream/mail server contexts.
 - Insert a validated NGINX gRPC route into an existing HTTP host while retaining its HTTP/2 and TLS listener configuration.
 - Add validated host-level logging and IP-only allow/deny policies; Apache authorization is scoped to `<Location>` and NGINX rules to the selected HTTP server/location.
+- Add explicit CIDR-based trusted `X-Forwarded-For` proxy IP reconstruction in generated or imported HTTP hosts, refusing unrestricted proxy trust and duplicate policies.
 - Move syntax subtrees between explicitly imported files with an atomic two-document calculation and guarded one-level undo; retain Unicode file BOM/encoding on export.
 - Display narrow, non-blocking security review hints for explicitly enabled directory listing and version exposure settings; no automatic rewrites.
 - Identify Virtual Hosts and append another generated NGINX server (inside an existing `http` block when present) or Apache `VirtualHost`.

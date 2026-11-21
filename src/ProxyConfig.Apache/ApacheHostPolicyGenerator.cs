@@ -47,6 +47,23 @@ public static class ApacheHostPolicyGenerator
         return sb.ToString();
     }
 
+    /// <summary>Requires mod_remoteip; valid at server or VirtualHost scope.</summary>
+    public static string GenerateTrustedProxies(TrustedProxyOptions options)
+    {
+        var errors = TrustedProxyValidator.Validate(options);
+        if (errors.Count != 0)
+            throw new ArgumentException(string.Join(" ", errors), nameof(options));
+        var sb = new StringBuilder();
+        sb.AppendLine("# Requires mod_remoteip.");
+        sb.AppendLine("RemoteIPHeader X-Forwarded-For");
+        foreach (var address in options.TrustedProxyAddresses)
+        {
+            IpAccessValidator.TryNormalizeIpOrCidr(address, out var normalized);
+            sb.AppendLine($"RemoteIPTrustedProxy {normalized}");
+        }
+        return sb.ToString();
+    }
+
     private static string Path(string input, TargetPlatform target) =>
         target == TargetPlatform.Windows ? input.Replace('\\', '/') : input;
 
