@@ -58,6 +58,15 @@ public sealed class MainWindowViewModel : ObservableObject
     private bool _grpcUpstreamTls;
     private int _grpcReadTimeoutSeconds = 120;
     private int _grpcSendTimeoutSeconds = 60;
+    private bool _enableHostLogging;
+    private bool _writeAccessLog = true;
+    private string _accessLogPath = "logs/access.log";
+    private string _errorLogPath = "logs/error.log";
+    private ErrorLogLevel _errorLogLevel = ErrorLogLevel.Warn;
+    private bool _enableIpPolicy;
+    private IpAccessMode _ipAccessMode = IpAccessMode.AllowList;
+    private string _ipAccessEntriesText = "192.168.1.0/24";
+    private string _ipAccessUrlPath = "/";
     private string _proxyUrlPath = "/";
     private bool _stripPrefix = true;
     private bool _preserveHost = true;
@@ -137,6 +146,8 @@ public sealed class MainWindowViewModel : ObservableObject
         AddProxyRouteCommand = new RelayCommand(AddProxyRouteToSelection);
         AddPhpHandlerCommand = new RelayCommand(AddPhpHandlerToSelection);
         AddGrpcRouteCommand = new RelayCommand(AddGrpcRouteToSelection);
+        AddHostLoggingCommand = new RelayCommand(AddHostLoggingToSelection);
+        AddIpPolicyCommand = new RelayCommand(AddIpPolicyToSelection);
         MoveToWorkspaceFileCommand = new RelayCommand(MoveToWorkspaceFile);
         UndoWorkspaceTransferCommand = new RelayCommand(UndoWorkspaceTransfer);
         RefreshExplorer();
@@ -171,6 +182,8 @@ public sealed class MainWindowViewModel : ObservableObject
     public IRelayCommand AddProxyRouteCommand { get; }
     public IRelayCommand AddPhpHandlerCommand { get; }
     public IRelayCommand AddGrpcRouteCommand { get; }
+    public IRelayCommand AddHostLoggingCommand { get; }
+    public IRelayCommand AddIpPolicyCommand { get; }
     public IRelayCommand MoveToWorkspaceFileCommand { get; }
     public IRelayCommand UndoWorkspaceTransferCommand { get; }
     public ObservableCollection<ConfigNodeListItem> ImportedNodes { get; } = [];
@@ -190,6 +203,10 @@ public sealed class MainWindowViewModel : ObservableObject
         Enum.GetValues<TlsProtocolProfile>();
     public IReadOnlyList<LoadBalancingMethod> BalancingMethods { get; } =
         Enum.GetValues<LoadBalancingMethod>();
+    public IReadOnlyList<ErrorLogLevel> ErrorLogLevels { get; } =
+        Enum.GetValues<ErrorLogLevel>();
+    public IReadOnlyList<IpAccessMode> IpAccessModes { get; } =
+        Enum.GetValues<IpAccessMode>();
 
     public bool IsExplorer => _page == EditorPage.Explorer;
     public bool IsStaticSite => _page == EditorPage.StaticSite;
@@ -201,6 +218,7 @@ public sealed class MainWindowViewModel : ObservableObject
     public bool IsHostPreset => IsReverseProxy || IsRedirect;
     public bool IsImport => _page == EditorPage.Import;
     public bool IsGenerator => !IsExplorer && !IsImport;
+    public bool IsHttpGenerator => IsStaticSite || IsHostPreset || IsLoadBalancer || IsFastCgi;
 
     public string SuggestedFileName => IsImport && ImportFileName.Length > 0
         ? ImportFileName.Replace('\\', '/').Split('/').Last()
@@ -584,6 +602,60 @@ public sealed class MainWindowViewModel : ObservableObject
         set => SetProperty(ref _grpcSendTimeoutSeconds, value);
     }
 
+    public bool EnableHostLogging
+    {
+        get => _enableHostLogging;
+        set { if (SetProperty(ref _enableHostLogging, value)) Regenerate(); }
+    }
+
+    public bool WriteAccessLog
+    {
+        get => _writeAccessLog;
+        set { if (SetProperty(ref _writeAccessLog, value)) Regenerate(); }
+    }
+
+    public string AccessLogPath
+    {
+        get => _accessLogPath;
+        set { if (SetProperty(ref _accessLogPath, value)) Regenerate(); }
+    }
+
+    public string ErrorLogPath
+    {
+        get => _errorLogPath;
+        set { if (SetProperty(ref _errorLogPath, value)) Regenerate(); }
+    }
+
+    public ErrorLogLevel SelectedErrorLogLevel
+    {
+        get => _errorLogLevel;
+        set { if (SetProperty(ref _errorLogLevel, value)) Regenerate(); }
+    }
+
+    public bool EnableIpPolicy
+    {
+        get => _enableIpPolicy;
+        set { if (SetProperty(ref _enableIpPolicy, value)) Regenerate(); }
+    }
+
+    public IpAccessMode SelectedIpAccessMode
+    {
+        get => _ipAccessMode;
+        set { if (SetProperty(ref _ipAccessMode, value)) Regenerate(); }
+    }
+
+    public string IpAccessEntriesText
+    {
+        get => _ipAccessEntriesText;
+        set { if (SetProperty(ref _ipAccessEntriesText, value)) Regenerate(); }
+    }
+
+    public string IpAccessUrlPath
+    {
+        get => _ipAccessUrlPath;
+        set { if (SetProperty(ref _ipAccessUrlPath, value)) Regenerate(); }
+    }
+
     public string ProxyUrlPath
     {
         get => _proxyUrlPath;
@@ -901,6 +973,7 @@ public sealed class MainWindowViewModel : ObservableObject
         OnPropertyChanged(nameof(IsStreamProxy));
         OnPropertyChanged(nameof(IsHostPreset));
         OnPropertyChanged(nameof(IsGenerator));
+        OnPropertyChanged(nameof(IsHttpGenerator));
         OnPropertyChanged(nameof(IsImport));
         OnPropertyChanged(nameof(SuggestedFileName));
         OnPropertyChanged(nameof(CanExport));
@@ -1088,11 +1161,72 @@ public sealed class MainWindowViewModel : ObservableObject
 
     private void RememberGeneratedPreview()
     {
+        if (IsHttpGenerator && (EnableHostLogging || EnableIpPolicy))
+        {
+            var errors = new List<string>();
+            if (EnableHostLogging)
+                errors.AddRange(HostLoggingValidator.Validate(BuildLoggingOptions()));
+            if (EnableIpPolicy)
+                errors.AddRange(IpAccessValidator.Validate(BuildIpOptions()));
+            if (errors.Count > 0)
+            {
+                ValidationMessage = string.Join(Environment.NewLine, errors);
+                Preview = "# Fix logging/access policy validation errors before generation.";
+                _lastGeneratedText = string.Empty;
+                OnPropertyChanged(nameof(CanAppendGeneratedHost));
+                return;
+            }
+
+            var generated = ConfigSyntaxDocument.Parse(SelectedEngine, Preview);
+            var host = generated.VirtualHosts.FirstOrDefault(n =>
+                ConfigBlockEditor.IsHttpVirtualHost(generated, n));
+            if (host is null || generated.Diagnostics.Count > 0)
+            {
+                ValidationMessage = "Generated HTTP host could not be identified for logging/access policies.";
+                Preview = "# Fix the configuration before generation.";
+                _lastGeneratedText = string.Empty;
+                OnPropertyChanged(nameof(CanAppendGeneratedHost));
+                return;
+            }
+            if (EnableHostLogging)
+            {
+                var logging = SelectedEngine == ServerEngine.Nginx
+                    ? NginxHostPolicyGenerator.GenerateLogging(BuildLoggingOptions())
+                    : ApacheHostPolicyGenerator.GenerateLogging(BuildLoggingOptions());
+                generated = ConfigBlockEditor.InsertGeneratedSnippet(generated, host, logging);
+                host = generated.VirtualHosts.Single(n =>
+                    ConfigBlockEditor.IsHttpVirtualHost(generated, n));
+            }
+            if (EnableIpPolicy)
+            {
+                var access = SelectedEngine == ServerEngine.Nginx
+                    ? NginxHostPolicyGenerator.GenerateIpAccess(BuildIpOptions())
+                    : ApacheHostPolicyGenerator.GenerateIpAccess(BuildIpOptions());
+                generated = ConfigBlockEditor.InsertGeneratedSnippet(generated, host, access);
+            }
+            Preview = generated.Text;
+        }
         _lastGeneratedText = Preview;
         _lastGeneratedEngine = SelectedEngine;
         _lastGeneratedPage = _page;
         OnPropertyChanged(nameof(CanAppendGeneratedHost));
     }
+
+    private HostLoggingOptions BuildLoggingOptions() => new()
+    {
+        AccessLogEnabled = WriteAccessLog,
+        AccessLogPath = (AccessLogPath ?? string.Empty).Trim(),
+        ErrorLogPath = (ErrorLogPath ?? string.Empty).Trim(),
+        ErrorLogLevel = SelectedErrorLogLevel,
+        TargetPlatform = SelectedTargetPlatform
+    };
+
+    private IpAccessOptions BuildIpOptions() => new()
+    {
+        Mode = SelectedIpAccessMode,
+        UrlPath = (IpAccessUrlPath ?? string.Empty).Trim(),
+        Entries = IpAccessValidator.ParseEntries(IpAccessEntriesText)
+    };
 
     public void ImportFiles(IEnumerable<ConfigImportedFile> files)
     {
@@ -1646,6 +1780,80 @@ public sealed class MainWindowViewModel : ObservableObject
             return;
         }
         ApplyEditorOperation(doc => ConfigBlockEditor.InsertGeneratedSnippet(doc, host, snippet));
+    }
+
+    private void AddHostLoggingToSelection()
+    {
+        var host = SelectedHttpRouteHost();
+        if (host is null)
+            return;
+        var options = BuildLoggingOptions();
+        var errors = HostLoggingValidator.Validate(options);
+        if (errors.Count > 0)
+        {
+            ImportDiagnostics = string.Join(Environment.NewLine, errors);
+            return;
+        }
+        string[] existingNames = SelectedEngine == ServerEngine.Nginx
+            ? ["access_log", "error_log"]
+            : ["CustomLog", "ErrorLog", "LogLevel"];
+        if (host.Children.Any(n => existingNames.Contains(n.Name, StringComparer.OrdinalIgnoreCase)))
+        {
+            ImportDiagnostics = "This host already has log directives. Edit or remove them before inserting a new logging preset.";
+            return;
+        }
+        var snippet = SelectedEngine == ServerEngine.Nginx
+            ? NginxHostPolicyGenerator.GenerateLogging(options)
+            : ApacheHostPolicyGenerator.GenerateLogging(options);
+        ApplyEditorOperation(doc => ConfigBlockEditor.InsertGeneratedSnippet(doc, host, snippet));
+    }
+
+    private void AddIpPolicyToSelection()
+    {
+        if (!IsImportSnapshotCurrent())
+            return;
+        var document = _importedDocument!;
+        var scope = ConfigBlockEditor.GetInsertionScope(document, SelectedImportNode?.Node);
+        var isHost = ConfigBlockEditor.IsHttpVirtualHost(document, scope);
+        var isLocation = scope is { Kind: ConfigNodeKind.Block, IsClosed: true } &&
+            scope.Name.Equals(SelectedEngine == ServerEngine.Nginx ? "location" : "Location",
+                StringComparison.OrdinalIgnoreCase) &&
+            document.VirtualHosts.Any(host =>
+                ConfigBlockEditor.IsHttpVirtualHost(document, host) &&
+                host.DescendantsAndSelf().Any(n => ReferenceEquals(n, scope)));
+        if (!isHost && !isLocation)
+        {
+            ImportDiagnostics = "Select an HTTP server / VirtualHost or a Location block inside it.";
+            return;
+        }
+        var options = BuildIpOptions();
+        var errors = IpAccessValidator.Validate(options);
+        if (errors.Count > 0)
+        {
+            ImportDiagnostics = string.Join(Environment.NewLine, errors);
+            return;
+        }
+        var forbidden = SelectedEngine == ServerEngine.Nginx
+            ? new[] { "allow", "deny" }
+            : new[] { "Require", "RequireAny", "RequireAll", "RequireNone" };
+        if (scope!.Children.Any(n => forbidden.Contains(n.Name, StringComparer.OrdinalIgnoreCase)))
+        {
+            ImportDiagnostics = "This scope already has authorization rules. Edit those rules instead of stacking conflicting policies.";
+            return;
+        }
+        var snippet = SelectedEngine == ServerEngine.Nginx
+            ? NginxHostPolicyGenerator.GenerateIpAccess(options)
+            : ApacheHostPolicyGenerator.GenerateIpAccess(options, insideLocation: isLocation);
+        if (SelectedEngine == ServerEngine.Apache && isHost)
+        {
+            var conflict = ConfigRouteConflictDetector.FindExactDuplicate(document, scope, snippet);
+            if (conflict is not null)
+            {
+                ImportDiagnostics = "That Apache Location already exists. Select and edit its authorization rules directly.";
+                return;
+            }
+        }
+        ApplyEditorOperation(doc => ConfigBlockEditor.InsertGeneratedSnippet(doc, scope, snippet));
     }
 
     private void UndoEdit()

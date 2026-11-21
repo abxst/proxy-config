@@ -51,6 +51,21 @@ public sealed class ConfigRouteConflictDetectorTests
             Assert.Single(doc.VirtualHosts), "Alias \"/files/\" \"/srv/new/\""));
     }
 
+    [Fact]
+    public void ApacheLocationAclSelectorIsDetectedBeforeAddingSecondPolicy()
+    {
+        var doc = ConfigSyntaxDocument.Parse(ServerEngine.Apache, """
+            <VirtualHost *:80>
+                <Location "/admin/">
+                    Require ip 192.0.2.0/24
+                </Location>
+            </VirtualHost>
+            """);
+        Assert.NotNull(ConfigRouteConflictDetector.FindExactDuplicate(doc,
+            Assert.Single(doc.VirtualHosts),
+            "<Location \"/admin/\">\n<RequireAny>\nRequire ip 10.0.0.0/8\n</RequireAny>\n</Location>"));
+    }
+
     [Theory]
     [InlineData(ServerEngine.Nginx)]
     [InlineData(ServerEngine.Apache)]
