@@ -46,6 +46,9 @@ public static class ApacheHostGenerator
             sb.AppendLine("    SSLEngine On");
             sb.AppendLine($"    SSLCertificateFile {QuotePath(options.CertificateFile, options.TargetPlatform)}");
             sb.AppendLine($"    SSLCertificateKeyFile {QuotePath(options.PrivateKeyFile, options.TargetPlatform)}");
+            sb.AppendLine("    SSLProtocol -all " +
+                (options.TlsProtocolProfile == TlsProtocolProfile.Tls13Only
+                    ? "+TLSv1.3" : "+TLSv1.2 +TLSv1.3"));
         }
 
         sb.AppendLine();

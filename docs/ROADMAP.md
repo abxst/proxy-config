@@ -71,7 +71,8 @@ Static Website is the first implemented preset. Continue with:
 - [ ] gRPC proxying and advanced timeout/buffering
 - [x] FastCGI/PHP host preset for both engines (v0.10)
 - [x] Per-host PHP-FPM handler insertion into existing hosts (v0.11)
-- [ ] Advanced TLS profile and certificate options
+- [x] Explicit TLS 1.2+1.3 / TLS 1.3-only protocol profiles and certificate paths (v0.12)
+- [ ] Advanced TLS cipher/ALPN/OCSP/session/stapling policy and certificate inventory
 - [x] NGINX TCP/UDP stream forwarding preset (v0.10)
 - [ ] Mail proxy preset where supported
 

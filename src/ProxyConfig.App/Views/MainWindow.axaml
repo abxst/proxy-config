@@ -87,6 +87,11 @@
               <CheckBox Content="Enable TLS" IsChecked="{Binding EnableTls}" />
 
               <StackPanel Spacing="10" IsVisible="{Binding EnableTls}">
+                <TextBlock FontWeight="SemiBold" Text="Allowed TLS protocol versions" />
+                <ComboBox ItemsSource="{Binding TlsProtocolProfiles}"
+                          SelectedItem="{Binding TlsProtocolProfile}" />
+                <TextBlock Opacity="0.6" FontSize="12" TextWrapping="Wrap"
+                           Text="TLS 1.3 only requires compatible client and target-server TLS libraries." />
                 <TextBlock FontWeight="SemiBold" Text="Certificate file on target server" />
                 <TextBox Text="{Binding CertificateFile, UpdateSourceTrigger=PropertyChanged}"
                          PlaceholderText="/etc/ssl/certs/example.pem" />
